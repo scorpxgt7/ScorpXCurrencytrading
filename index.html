@@ -1622,6 +1622,152 @@
       color: var(--info);
     }
 
+    .tab-guide {
+      background: linear-gradient(135deg, rgba(59, 130, 246, 0.10), rgba(34, 197, 94, 0.06));
+      border: 1px solid var(--border);
+      border-left: 4px solid var(--info);
+      border-radius: 8px;
+      padding: 14px 16px;
+      color: var(--text);
+    }
+
+    .tab-guide-header {
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+      gap: 12px;
+      margin-bottom: 8px;
+    }
+
+    .tab-guide-title {
+      font-weight: 800;
+      color: var(--text);
+    }
+
+    .tab-guide-toggle {
+      background: transparent;
+      border: 1px solid var(--border);
+      color: var(--text-muted);
+      border-radius: 6px;
+      padding: 6px 10px;
+      cursor: pointer;
+      font-weight: 700;
+    }
+
+    .tab-guide-body {
+      color: var(--text-muted);
+      font-size: 0.92rem;
+    }
+
+    .tab-guide-body ul {
+      margin: 8px 0 0 18px;
+    }
+
+    .agent-chat {
+      border: 1px solid var(--border);
+      border-radius: 8px;
+      background: rgba(255, 255, 255, 0.03);
+      margin: 16px 0;
+      overflow: hidden;
+    }
+
+    .agent-chat-header {
+      display: flex;
+      justify-content: space-between;
+      gap: 12px;
+      align-items: center;
+      padding: 12px 14px;
+      background: var(--border-light);
+      border-bottom: 1px solid var(--border);
+    }
+
+    .agent-chat-title {
+      font-weight: 800;
+      color: var(--text);
+    }
+
+    .agent-chat-provider {
+      display: flex;
+      gap: 8px;
+      align-items: center;
+      flex-wrap: wrap;
+    }
+
+    .agent-chat-provider select,
+    .agent-chat-provider input {
+      background: var(--card);
+      color: var(--text);
+      border: 1px solid var(--border);
+      border-radius: 6px;
+      padding: 8px;
+      font-size: 0.85rem;
+    }
+
+    .agent-chat-messages {
+      height: 280px;
+      overflow-y: auto;
+      padding: 14px;
+      display: flex;
+      flex-direction: column;
+      gap: 10px;
+    }
+
+    .agent-message {
+      max-width: 88%;
+      padding: 10px 12px;
+      border-radius: 8px;
+      border: 1px solid var(--border);
+      line-height: 1.45;
+      font-size: 0.92rem;
+      white-space: pre-wrap;
+    }
+
+    .agent-message.user {
+      align-self: flex-end;
+      background: rgba(59, 130, 246, 0.16);
+      border-color: rgba(59, 130, 246, 0.28);
+    }
+
+    .agent-message.assistant {
+      align-self: flex-start;
+      background: rgba(34, 197, 94, 0.10);
+      border-color: rgba(34, 197, 94, 0.24);
+    }
+
+    .agent-chat-input {
+      display: grid;
+      grid-template-columns: 1fr auto;
+      gap: 10px;
+      padding: 12px;
+      border-top: 1px solid var(--border);
+    }
+
+    .agent-chat-input input {
+      background: var(--card);
+      color: var(--text);
+      border: 1px solid var(--border);
+      border-radius: 6px;
+      padding: 11px;
+    }
+
+    .agent-chat-input button,
+    .agent-chip {
+      border: none;
+      border-radius: 6px;
+      background: linear-gradient(135deg, var(--scorp-primary), var(--scorp-secondary));
+      color: white;
+      padding: 10px 12px;
+      font-weight: 800;
+      cursor: pointer;
+    }
+
+    .agent-chat-chips {
+      display: flex;
+      flex-wrap: wrap;
+      gap: 8px;
+      padding: 0 12px 12px;
+    }
+
     @media (max-width: 900px) {
       .auto-monitor {
         grid-template-columns: 1fr;
@@ -2230,6 +2376,14 @@
         </button>
       </div>
 
+      <div class="tab-guide" id="tabGuide">
+        <div class="tab-guide-header">
+          <div class="tab-guide-title" id="tabGuideTitle">Position Calculator Guide</div>
+          <button class="tab-guide-toggle" id="tabGuideToggle">Hide Guide</button>
+        </div>
+        <div class="tab-guide-body" id="tabGuideBody"></div>
+      </div>
+
       <!-- Calculator Tab -->
       <div class="tab-content active" id="calculator-tab">
         <div class="calculator-container">
@@ -2467,6 +2621,33 @@
               <span class="theme-icon">🌙</span>
               <span class="theme-text">Dark Mode</span>
             </button>
+          </div>
+
+          <div class="agent-chat">
+            <div class="agent-chat-header">
+              <div>
+                <div class="agent-chat-title"><i class="fas fa-comments scorp-icon"></i> Live AI Trading Agent Chat</div>
+                <div style="color: var(--text-muted); font-size: 0.85rem;">Ask about the current symbol, open paper trades, P&L, exits, or strategy rules.</div>
+              </div>
+              <div class="agent-chat-provider">
+                <select id="agentProvider">
+                  <option value="local" selected>Built-in AI Rules</option>
+                  <option value="ollama">Local Ollama</option>
+                </select>
+                <input id="ollamaModel" value="llama3.2" placeholder="Ollama model" title="Example: llama3.2, qwen2.5, mistral">
+              </div>
+            </div>
+            <div class="agent-chat-messages" id="agentChatMessages"></div>
+            <div class="agent-chat-chips">
+              <button class="agent-chip" data-agent-prompt="What is the current market status?">Market status</button>
+              <button class="agent-chip" data-agent-prompt="Should I close my active auto paper trade?">Close guidance</button>
+              <button class="agent-chip" data-agent-prompt="Explain the current best strategy setup.">Best strategy</button>
+              <button class="agent-chip" data-agent-prompt="Summarize my paper trading performance.">Performance</button>
+            </div>
+            <div class="agent-chat-input">
+              <input id="agentChatInput" placeholder="Ask the AI trading agent...">
+              <button id="agentChatSend"><i class="fas fa-paper-plane"></i> Send</button>
+            </div>
           </div>
 
           <!-- Operating Mode Toggles -->
@@ -3452,6 +3633,37 @@
       { id: 'balanced-swing', name: 'Balanced Swing', stopAtr: 1.6, targetAtr: 3.0, minRR: 1.7, confidenceBoost: 2 },
       { id: 'gold-conservative', name: 'Gold Conservative', stopAtr: 1.8, targetAtr: 3.8, minRR: 2.0, confidenceBoost: 6 }
     ];
+
+    const tabGuides = {
+      calculator: {
+        title: 'Position Calculator Guide',
+        body: '<p>Use this tab before every paper trade to size risk consistently.</p><ul><li>Choose the symbol, entry, stop loss, and take profit.</li><li>Keep risk per trade small and consistent.</li><li>Use market data buttons when you want the current simulated price loaded into the calculator.</li></ul>'
+      },
+      'ai-assistant': {
+        title: 'AI Trading Assistant Guide',
+        body: '<p>This tab validates setups and explains the market using deterministic rules plus optional local AI chat.</p><ul><li>Generate a signal to see BUY, SELL, or NO TRADE with rejection reasons.</li><li>Use the chat to ask about current market status, exits, and open paper trades.</li><li>Built-in AI Rules works without keys. Local Ollama works if Ollama is running on your computer.</li></ul>'
+      },
+      'market-data': {
+        title: 'Market Data Guide',
+        body: '<p>This tab shows the current data feeding the assistant and paper trading engine.</p><ul><li>Refresh data before optimizing strategies.</li><li>Watch spread, RSI, ATR, EMA alignment, and market structure.</li><li>If live APIs fail, the app falls back to simulated data for paper testing.</li></ul>'
+      },
+      'trade-journal': {
+        title: 'Trade Journal Guide',
+        body: '<p>This tab records closed paper trades and strategy context.</p><ul><li>Manual closes, stop-loss closes, and take-profit closes sync here.</li><li>Review source and strategy name to understand why trades happened.</li><li>Export CSV for deeper analysis.</li></ul>'
+      },
+      performance: {
+        title: 'Performance Guide',
+        body: '<p>This tab summarizes closed-trade performance and live paper account status.</p><ul><li>Total trades, win rate, and total profit use closed journal entries.</li><li>Floating P&L and equity update from active paper trades.</li><li>Use this with the journal to find strategy patterns, not guarantees.</li></ul>'
+      },
+      settings: {
+        title: 'Settings Guide',
+        body: '<p>This tab controls app behavior and local storage.</p><ul><li>Adjust refresh intervals and confidence thresholds.</li><li>Clear data only when you want to reset local journal/settings history.</li><li>API keys should be handled through a backend in a future version, not hardcoded into GitHub Pages.</li></ul>'
+      },
+      'paper-trading': {
+        title: 'Paper Trading Guide',
+        body: '<p>This tab is the main simulation workspace.</p><ul><li>Use Optimize to scan strategies and Start to enable auto paper trading.</li><li>Live Auto Trade Status shows active position, strategy, P&L, and SL/TP distance.</li><li>AI Trade Summary gives hold, watch, risk warning, or close/trail guidance.</li></ul>'
+      }
+    };
     
     // Enhanced currency data structure with technical indicators
     const currencyData = {
@@ -3621,10 +3833,12 @@
       loadPaperTradingData();
       
       initializeTheme();
+      initializeGuides();
       initializeTabs();
       initializeCurrencySelection();
       initializeCalculator();
       initializeAIAssistant();
+      initializeTradingAgentChat();
       initializeMarketData();
       initializeChart();
       setupEventListeners();
@@ -3709,19 +3923,49 @@
       }
     }
 
+    function initializeGuides() {
+      const toggle = document.getElementById('tabGuideToggle');
+      const body = document.getElementById('tabGuideBody');
+      const hidden = localStorage.getItem('scorpx-guide-hidden') === 'true';
+
+      if (body) body.style.display = hidden ? 'none' : 'block';
+      if (toggle) {
+        toggle.textContent = hidden ? 'Show Guide' : 'Hide Guide';
+        toggle.addEventListener('click', () => {
+          const isHidden = body.style.display === 'none';
+          body.style.display = isHidden ? 'block' : 'none';
+          toggle.textContent = isHidden ? 'Hide Guide' : 'Show Guide';
+          localStorage.setItem('scorpx-guide-hidden', (!isHidden).toString());
+        });
+      }
+
+      updateTabGuide(currentTab);
+    }
+
+    function updateTabGuide(tabId) {
+      const guide = tabGuides[tabId] || tabGuides.calculator;
+      const title = document.getElementById('tabGuideTitle');
+      const body = document.getElementById('tabGuideBody');
+      if (title) title.textContent = guide.title;
+      if (body) body.innerHTML = guide.body;
+    }
+
     // Tab Management
     function initializeTabs() {
       const tabButtons = document.querySelectorAll('.tab-btn');
       
       tabButtons.forEach(tab => {
         tab.addEventListener('click', function(e) {
-          const tabId = e.target.dataset.tab;
+          const clickedTab = e.target.closest('.tab-btn');
+          const tabId = clickedTab?.dataset.tab;
+          if (!tabId) return;
           
           // Don't do anything if clicking the same tab
           if (currentTab === tabId) return;
           
           // Update current tab
           currentTab = tabId;
+          updateTabGuide(tabId);
           
           // Hide all tabs
           document.querySelectorAll('.tab-content').forEach(content => {
@@ -3739,7 +3983,7 @@
             btn.classList.remove('active');
           });
           
-          e.target.classList.add('active');
+          clickedTab.classList.add('active');
           
           // Load data for the tab if needed
           if (tabId === 'market-data') {
@@ -5300,6 +5544,145 @@
       setTimeout(() => {
         status.className = 'ai-status';
       }, 5000);
+    }
+
+    function initializeTradingAgentChat() {
+      const messages = document.getElementById('agentChatMessages');
+      const input = document.getElementById('agentChatInput');
+      const send = document.getElementById('agentChatSend');
+      const provider = document.getElementById('agentProvider');
+      const model = document.getElementById('ollamaModel');
+      if (!messages || !input || !send || !provider || !model) return;
+
+      provider.value = localStorage.getItem('scorpx-agent-provider') || 'local';
+      model.value = localStorage.getItem('scorpx-ollama-model') || 'llama3.2';
+      provider.addEventListener('change', () => localStorage.setItem('scorpx-agent-provider', provider.value));
+      model.addEventListener('change', () => localStorage.setItem('scorpx-ollama-model', model.value.trim() || 'llama3.2'));
+
+      addAgentMessage('assistant', 'I can explain the current market, active paper trades, strategy optimizer output, and close/hold guidance. Built-in AI Rules works offline in this page. Select Local Ollama if you run Ollama on this computer.');
+
+      send.addEventListener('click', sendAgentChatMessage);
+      input.addEventListener('keydown', event => {
+        if (event.key === 'Enter') sendAgentChatMessage();
+      });
+      document.querySelectorAll('[data-agent-prompt]').forEach(chip => {
+        chip.addEventListener('click', () => {
+          input.value = chip.dataset.agentPrompt;
+          sendAgentChatMessage();
+        });
+      });
+    }
+
+    function addAgentMessage(role, text) {
+      const messages = document.getElementById('agentChatMessages');
+      if (!messages) return;
+      const node = document.createElement('div');
+      node.className = `agent-message ${role}`;
+      node.textContent = text;
+      messages.appendChild(node);
+      messages.scrollTop = messages.scrollHeight;
+    }
+
+    async function sendAgentChatMessage() {
+      const input = document.getElementById('agentChatInput');
+      const provider = document.getElementById('agentProvider')?.value || 'local';
+      const model = document.getElementById('ollamaModel')?.value || 'llama3.2';
+      const question = input?.value.trim();
+      if (!question) return;
+
+      input.value = '';
+      addAgentMessage('user', question);
+      addAgentMessage('assistant', 'Analyzing current market and paper account...');
+
+      const response = provider === 'ollama'
+        ? await askOllamaTradingAgent(question, model)
+        : buildLocalTradingAgentAnswer(question);
+
+      const messages = document.getElementById('agentChatMessages');
+      const last = messages?.lastElementChild;
+      if (last && last.textContent === 'Analyzing current market and paper account...') {
+        last.textContent = response;
+      } else {
+        addAgentMessage('assistant', response);
+      }
+    }
+
+    function getTradingAgentContext() {
+      const symbol = document.getElementById('aiSymbolSelect')?.value || document.querySelector('.currency-badge.active')?.dataset.currency || 'EURUSD';
+      const data = currencyData[symbol] || currencyData.EURUSD;
+      const activeAutoTrade = getActiveAutoTrade();
+      const openTrades = paperTradingAccount.openPositions || [];
+      const closedTrades = paperTradingAccount.closedTrades || [];
+      const best = bestOptimizedStrategy || runStrategyOptimization();
+
+      return {
+        symbol,
+        data,
+        activeAutoTrade,
+        openTrades,
+        closedTrades,
+        best,
+        performance: {
+          balance: paperTradingAccount.balance,
+          equity: paperTradingAccount.equity,
+          floatingPnl: paperTradingAccount.floatingPnl,
+          totalClosed: closedTrades.length,
+          winRate: performanceStats.winRate || 0,
+          totalProfit: performanceStats.totalProfit || 0
+        }
+      };
+    }
+
+    function buildLocalTradingAgentAnswer(question) {
+      const ctx = getTradingAgentContext();
+      const { symbol, data, activeAutoTrade, best, performance } = ctx;
+      const lower = question.toLowerCase();
+      const trend = data.ema20 > data.ema50 ? 'bullish' : data.ema20 < data.ema50 ? 'bearish' : 'flat';
+      const alignment = data.marketStructure === data.htfStructure ? 'aligned' : 'mixed';
+      const spreadPips = Math.abs(data.ask - data.bid) / getPipSize(symbol);
+
+      if (lower.includes('close') || lower.includes('exit') || lower.includes('active auto')) {
+        if (!activeAutoTrade) {
+          return `No active auto paper trade is open right now. The agent is scanning. Best current candidate: ${best?.symbol || symbol} ${best?.signalType || 'NO_TRADE'} using ${best?.strategyName || 'no strategy'} at ${best?.confidence || 0}% confidence.`;
+        }
+        const currentPrice = currencyData[activeAutoTrade.symbol]?.price || activeAutoTrade.currentPrice;
+        const pips = calculatePips(activeAutoTrade, currentPrice);
+        const slDistance = Math.abs(currentPrice - activeAutoTrade.stopLossPrice) / getPipSize(activeAutoTrade.symbol);
+        const tpDistance = Math.abs(activeAutoTrade.takeProfitPrice - currentPrice) / getPipSize(activeAutoTrade.symbol);
+        const guidance = buildAutoTradeAISummary(activeAutoTrade, currencyData[activeAutoTrade.symbol], pips, slDistance, tpDistance)
+          .replace(/<[^>]+>/g, ' ')
+          .replace(/\s+/g, ' ')
+          .trim();
+        return `Active auto paper trade: ${activeAutoTrade.symbol} ${activeAutoTrade.direction}, strategy ${activeAutoTrade.strategyName || 'Auto'}, live P&L $${activeAutoTrade.floatingPnl.toFixed(2)} (${pips.toFixed(1)} pips). Distance to SL/TP: ${slDistance.toFixed(1)}p / ${tpDistance.toFixed(1)}p.\n\n${guidance}`;
+      }
+
+      if (lower.includes('performance') || lower.includes('journal') || lower.includes('p&l') || lower.includes('pnl')) {
+        return `Paper account status: balance $${performance.balance.toFixed(2)}, equity $${performance.equity.toFixed(2)}, floating P&L $${performance.floatingPnl.toFixed(2)}. Open trades: ${ctx.openTrades.length}. Closed paper trades: ${performance.totalClosed}. Journal win rate: ${performance.winRate}%, closed P&L $${performance.totalProfit.toFixed(2)}.`;
+      }
+
+      if (lower.includes('strategy') || lower.includes('optimize') || lower.includes('best')) {
+        return `Best optimized setup: ${best?.symbol || symbol} ${best?.signalType || 'NO_TRADE'} via ${best?.strategyName || 'no strategy'} with ${best?.confidence || 0}% score and expected RR 1:${best?.rr?.toFixed(2) || '--'}. Rejections: ${best?.rejections?.length ? best.rejections.join(', ') : 'none'}.`;
+      }
+
+      return `${symbol} market status: price ${data.price.toFixed(data.decimal)}, trend ${trend}, structure ${data.marketStructure}, HTF ${data.htfStructure}, alignment ${alignment}. RSI ${data.rsi14.toFixed(1)}, ATR ${data.atr14.toFixed(data.decimal)}, spread ${spreadPips.toFixed(1)}p, news risk ${data.newsRisk}. This is paper-trading guidance only; use SL/TP and risk limits before any action.`;
+    }
+
+    async function askOllamaTradingAgent(question, model) {
+      const ctx = getTradingAgentContext();
+      const prompt = `You are ScorpXGT's paper-trading assistant. Do not provide financial advice or guarantees. Use only this JSON context and answer with concise paper-trading guidance.\n\nContext:\n${JSON.stringify(ctx, null, 2)}\n\nUser question: ${question}`;
+
+      try {
+        const response = await fetch('http://localhost:11434/api/generate', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ model, prompt, stream: false })
+        });
+        if (!response.ok) throw new Error(`Ollama returned ${response.status}`);
+        const data = await response.json();
+        return data.response || buildLocalTradingAgentAnswer(question);
+      } catch (error) {
+        return `Local Ollama did not respond (${error.message}). Falling back to built-in AI Rules.\n\n${buildLocalTradingAgentAnswer(question)}`;
+      }
     }
 
     // ============== LIVE API INTEGRATION ==============

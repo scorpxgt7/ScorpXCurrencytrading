@@ -179,6 +179,18 @@ Professional AI-powered scalping assistant with real data integration, rule-base
 - Closed paper trades sync into the Trade Journal automatically
 - Performance Dashboard refreshes with journal totals plus live paper-trading equity, open trades, and floating P&L
 
+### Guided UI & Live AI Agent Chat
+- Every tab includes a visible guide explaining what the tab does and how to use it
+- AI Trading Assistant tab includes a live chat panel for questions about:
+  - Current market status
+  - Active auto paper trades
+  - Close/hold guidance
+  - Best strategy setup
+  - Paper trading performance
+- Default mode uses built-in deterministic AI rules, so it works on GitHub Pages without paid API keys
+- Optional Local Ollama mode can call `http://localhost:11434/api/generate` when Ollama is running on the user's computer
+- API keys are intentionally not hardcoded into the static app; a backend proxy should be used before adding paid/cloud AI or market-data secrets
+
 ### TradingView Affiliate Placement
 - TradingView affiliate banner is visible beside the embedded chart area
 - Maximized chart modal includes the same TradingView call-to-action
