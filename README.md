@@ -166,6 +166,23 @@ Professional AI-powered scalping assistant with real data integration, rule-base
   - Persistent data storage (trades saved between sessions)
   - Support for all 7 currency pairs
 
+### AI Strategy Optimizer & Auto Paper Trading
+- Scans supported pairs against built-in strategy profiles: Trend Scalper, Momentum Breakout, Balanced Swing, and Gold Conservative
+- Ranks setups by rule alignment, spread, higher-timeframe confirmation, and expected risk/reward
+- Displays the best scoring simulated setup in the Paper Trading tab
+- Optional auto paper trading mode executes paper trades only, never live broker orders
+- Configurable scan interval, minimum confidence, risk percent, and max open trades
+- Avoids duplicate open positions for the same symbol, direction, and strategy
+- Stores strategy name and confidence on auto-generated paper trades
+
+### TradingView Affiliate Placement
+- TradingView affiliate banner is visible beside the embedded chart area
+- Maximized chart modal includes the same TradingView call-to-action
+- Affiliate URL: `https://www.tradingview.com/?aff_id=166197&source=https%3A%2F%2Fscorpxgt7.github.io%2FScorpXCurrencytrading%2F`
+
+## Safety Notice
+This application is for education, analysis, and paper trading simulation only. It does not provide financial advice, does not guarantee profitability, and does not place live broker trades.
+
 ## API Integration
 
 ### Available APIs

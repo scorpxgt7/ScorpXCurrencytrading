@@ -33,6 +33,7 @@
       --scorp-primary: #8B0000;
       --scorp-secondary: #FF4500;
       --scorp-glow: rgba(139, 0, 0, 0.3);
+      --affiliate: #f59e0b;
     }
 
     [data-theme="light"] {
@@ -1498,6 +1499,92 @@
       flex-wrap: wrap;
     }
 
+    .tradingview-affiliate-banner {
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      gap: 12px;
+      padding: 12px 14px;
+      margin: 14px 0;
+      border: 1px solid rgba(245, 158, 11, 0.45);
+      border-radius: 8px;
+      background: linear-gradient(135deg, rgba(245, 158, 11, 0.18), rgba(34, 197, 94, 0.08));
+      color: var(--text);
+    }
+
+    .tradingview-affiliate-banner strong {
+      color: var(--affiliate);
+    }
+
+    .tradingview-affiliate-banner a {
+      color: #111827;
+      background: var(--affiliate);
+      border-radius: 6px;
+      padding: 8px 12px;
+      font-weight: 800;
+      text-decoration: none;
+      white-space: nowrap;
+    }
+
+    .strategy-grid {
+      display: grid;
+      grid-template-columns: repeat(4, minmax(0, 1fr));
+      gap: 12px;
+      margin-top: 14px;
+    }
+
+    .strategy-card {
+      background: var(--border-light);
+      border: 1px solid var(--border);
+      border-radius: 8px;
+      padding: 12px;
+    }
+
+    .strategy-card .label {
+      color: var(--text-muted);
+      font-size: 0.78rem;
+      margin-bottom: 4px;
+    }
+
+    .strategy-card .value {
+      color: var(--text);
+      font-size: 1.1rem;
+      font-weight: 800;
+    }
+
+    .auto-trading-status {
+      display: inline-flex;
+      align-items: center;
+      gap: 8px;
+      padding: 6px 10px;
+      border-radius: 999px;
+      border: 1px solid var(--border);
+      color: var(--text-muted);
+      font-size: 0.85rem;
+      font-weight: 700;
+    }
+
+    .auto-trading-status.active {
+      border-color: rgba(34, 197, 94, 0.5);
+      color: var(--accent);
+      background: rgba(34, 197, 94, 0.08);
+    }
+
+    @media (max-width: 900px) {
+      .strategy-grid {
+        grid-template-columns: repeat(2, minmax(0, 1fr));
+      }
+
+      .tradingview-affiliate-banner {
+        align-items: stretch;
+        flex-direction: column;
+      }
+
+      .tradingview-affiliate-banner a {
+        text-align: center;
+      }
+    }
+
     .chart-type-btn {
       padding: 8px 16px;
       background: var(--border);
@@ -2813,6 +2900,67 @@
             </div>
           </div>
 
+          <!-- AI Strategy Optimizer and Auto Paper Trading -->
+          <div style="background: linear-gradient(135deg, rgba(245, 158, 11, 0.12), rgba(30, 64, 175, 0.08)); border: 1px solid var(--border); border-radius: 12px; padding: 20px; margin: 20px 0;">
+            <div style="display: flex; justify-content: space-between; gap: 12px; align-items: center; flex-wrap: wrap; margin-bottom: 12px;">
+              <div>
+                <h3 style="margin-bottom: 6px;">AI Strategy Optimizer</h3>
+                <p style="color: var(--text-muted); font-size: 0.9rem;">Finds the best scoring simulated setup, then can auto-execute paper trades only.</p>
+              </div>
+              <span id="autoTradingStatus" class="auto-trading-status"><i class="fas fa-circle"></i> Auto paper trading OFF</span>
+            </div>
+
+            <div style="display: grid; grid-template-columns: repeat(auto-fit, minmax(140px, 1fr)); gap: 12px; margin: 15px 0;">
+              <div>
+                <label style="display: block; color: var(--text-muted); font-size: 0.85rem; margin-bottom: 8px;">Scan Interval</label>
+                <select id="autoScanInterval" style="width: 100%; padding: 10px; background: var(--card); color: var(--text); border: 1px solid var(--border); border-radius: 6px;">
+                  <option value="15000">15 sec</option>
+                  <option value="30000" selected>30 sec</option>
+                  <option value="60000">60 sec</option>
+                </select>
+              </div>
+              <div>
+                <label style="display: block; color: var(--text-muted); font-size: 0.85rem; margin-bottom: 8px;">Min Confidence</label>
+                <input type="number" id="autoMinConfidence" value="78" min="50" max="100" step="1" style="width: 100%; padding: 10px; background: var(--card); color: var(--text); border: 1px solid var(--border); border-radius: 6px;">
+              </div>
+              <div>
+                <label style="display: block; color: var(--text-muted); font-size: 0.85rem; margin-bottom: 8px;">Risk Per Trade %</label>
+                <input type="number" id="autoRiskPercent" value="1" min="0.1" max="5" step="0.1" style="width: 100%; padding: 10px; background: var(--card); color: var(--text); border: 1px solid var(--border); border-radius: 6px;">
+              </div>
+              <div>
+                <label style="display: block; color: var(--text-muted); font-size: 0.85rem; margin-bottom: 8px;">Max Open Trades</label>
+                <input type="number" id="autoMaxOpenTrades" value="3" min="1" max="10" step="1" style="width: 100%; padding: 10px; background: var(--card); color: var(--text); border: 1px solid var(--border); border-radius: 6px;">
+              </div>
+              <div style="display: flex; gap: 8px; align-items: end;">
+                <button onclick="runStrategyOptimization()" style="width: 100%; padding: 11px; background: var(--info); color: white; border: none; border-radius: 8px; font-weight: 700; cursor: pointer;">Optimize</button>
+                <button id="autoTradingToggleBtn" onclick="toggleAutoPaperTrading()" style="width: 100%; padding: 11px; background: var(--accent); color: white; border: none; border-radius: 8px; font-weight: 700; cursor: pointer;">Start</button>
+              </div>
+            </div>
+
+            <div class="strategy-grid">
+              <div class="strategy-card">
+                <div class="label">Best Strategy</div>
+                <div class="value" id="bestStrategyName">Not scanned</div>
+              </div>
+              <div class="strategy-card">
+                <div class="label">Signal</div>
+                <div class="value" id="bestStrategySignal">--</div>
+              </div>
+              <div class="strategy-card">
+                <div class="label">Expected RR</div>
+                <div class="value" id="bestStrategyRR">--</div>
+              </div>
+              <div class="strategy-card">
+                <div class="label">Score</div>
+                <div class="value" id="bestStrategyScore">--</div>
+              </div>
+            </div>
+
+            <div id="strategyOptimizerLog" style="margin-top: 14px; background: var(--card); border: 1px solid var(--border); border-radius: 8px; padding: 12px; color: var(--text-muted); font-size: 0.88rem;">
+              Run optimization to scan all supported pairs and strategy profiles.
+            </div>
+          </div>
+
           <!-- Quick Trade Section -->
           <div style="background: linear-gradient(135deg, rgba(34, 197, 94, 0.1), rgba(16, 185, 129, 0.05)); border: 1px solid var(--border); border-radius: 12px; padding: 20px; margin: 20px 0;">
             <h3 style="margin-bottom: 15px;">⚡ Quick Trade (Market Order)</h3>
@@ -3007,6 +3155,11 @@
         <button class="chart-type-btn" data-chart-type="area">Area</button>
       </div>
 
+      <div class="tradingview-affiliate-banner">
+        <span><strong>TradingView charts:</strong> open TradingView for deeper analysis and alerts.</span>
+        <a href="https://www.tradingview.com/?aff_id=166197&source=https%3A%2F%2Fscorpxgt7.github.io%2FScorpXCurrencytrading%2F" target="_blank" rel="noopener sponsored">Open TradingView</a>
+      </div>
+
       <div id="tradingview_chart" class="tradingview-widget"></div>
 
       <div class="sync-notice" id="syncNotice">
@@ -3133,6 +3286,11 @@
             </div>
           </div>
 
+          <div class="tradingview-affiliate-banner">
+            <span><strong>TradingView charts:</strong> continue charting with the full TradingView toolset.</span>
+            <a href="https://www.tradingview.com/?aff_id=166197&source=https%3A%2F%2Fscorpxgt7.github.io%2FScorpXCurrencytrading%2F" target="_blank" rel="noopener sponsored">Open TradingView</a>
+          </div>
+
           <div id="tradingview_chart_modal" class="chart-modal-widget"></div>
 
           <div style="display: flex; gap: 10px;">
@@ -3193,6 +3351,17 @@
 
     // Pending Orders (Limit Orders)
     let pendingOrders = [];
+
+    const TRADINGVIEW_AFFILIATE_URL = 'https://www.tradingview.com/?aff_id=166197&source=https%3A%2F%2Fscorpxgt7.github.io%2FScorpXCurrencytrading%2F';
+    let autoPaperTradingInterval = null;
+    let autoPaperTradingEnabled = false;
+    let bestOptimizedStrategy = null;
+    const strategyProfiles = [
+      { id: 'trend-scalper', name: 'Trend Scalper', stopAtr: 1.1, targetAtr: 2.0, minRR: 1.6, confidenceBoost: 4 },
+      { id: 'momentum-breakout', name: 'Momentum Breakout', stopAtr: 1.3, targetAtr: 2.7, minRR: 1.8, confidenceBoost: 8 },
+      { id: 'balanced-swing', name: 'Balanced Swing', stopAtr: 1.6, targetAtr: 3.0, minRR: 1.7, confidenceBoost: 2 },
+      { id: 'gold-conservative', name: 'Gold Conservative', stopAtr: 1.8, targetAtr: 3.8, minRR: 2.0, confidenceBoost: 6 }
+    ];
     
     // Enhanced currency data structure with technical indicators
     const currencyData = {
@@ -3331,6 +3500,26 @@
       } else {
         data.marketStructure = 'RANGE';
       }
+    }
+
+    function getPipSize(symbol) {
+      return symbol === 'XAUUSD' || symbol.includes('JPY') ? 0.01 : 0.0001;
+    }
+
+    function calculatePaperPnl(position, exitPrice) {
+      const pipSize = getPipSize(position.symbol);
+      const pipValuePerLot = position.symbol === 'XAUUSD' ? 10 : 10;
+      const pips = position.direction === 'BUY'
+        ? (exitPrice - position.entryPrice) / pipSize
+        : (position.entryPrice - exitPrice) / pipSize;
+      return pips * pipValuePerLot * position.lotSize;
+    }
+
+    function calculatePips(position, exitPrice) {
+      const pipSize = getPipSize(position.symbol);
+      return position.direction === 'BUY'
+        ? (exitPrice - position.entryPrice) / pipSize
+        : (position.entryPrice - exitPrice) / pipSize;
     }
 
     // Initialize when DOM is loaded
@@ -4810,7 +4999,7 @@
       
       // Calculate position metrics (same as executePaperTrade)
       const decimalPlaces = currencyData[symbol]?.decimal || 5;
-      const pipValue = 1 / Math.pow(10, decimalPlaces);
+      const pipValue = getPipSize(symbol);
       const stopLossPrice = direction === 'BUY' 
         ? entryPrice - (stopLossPips * pipValue)
         : entryPrice + (stopLossPips * pipValue);
@@ -5466,6 +5655,207 @@
       return Math.max(0, Math.min(100, k || 50));
     }
 
+    // ============== AI STRATEGY OPTIMIZER / AUTO PAPER TRADING ==============
+    function evaluateStrategyForSymbol(symbol, profile) {
+      const data = currencyData[symbol];
+      if (!data) return null;
+
+      const emaBullish = data.ema20 > data.ema50;
+      const emaBearish = data.ema20 < data.ema50;
+      const rsiBullish = data.rsi14 >= 52;
+      const rsiBearish = data.rsi14 <= 48;
+      const htfBullish = data.htfEma20 > data.htfEma50 && data.htfStructure === 'BULLISH';
+      const htfBearish = data.htfEma20 < data.htfEma50 && data.htfStructure === 'BEARISH';
+      const spreadPips = Math.abs(data.ask - data.bid) / getPipSize(symbol);
+      const isGold = symbol === 'XAUUSD';
+
+      if (profile.id === 'gold-conservative' && !isGold) return null;
+      if (isGold && profile.id !== 'gold-conservative' && profile.minRR < 2) return null;
+
+      const direction = emaBullish && rsiBullish && htfBullish
+        ? 'BUY'
+        : emaBearish && rsiBearish && htfBearish
+          ? 'SELL'
+          : 'NO_TRADE';
+
+      let rejections = [];
+      if (direction === 'NO_TRADE') rejections.push('Trend, RSI, and higher timeframe are not aligned');
+      if (data.marketStructure === 'RANGE' || data.htfStructure === 'RANGE') rejections.push('Range structure');
+      if (data.newsRisk === 'HIGH') rejections.push('High news risk');
+      if (spreadPips > data.maxSpreadAllowed) rejections.push(`Spread ${spreadPips.toFixed(1)} pips`);
+
+      const pipSize = getPipSize(symbol);
+      const atr = Math.max(data.atr14 || pipSize * 20, pipSize * 8);
+      const entry = direction === 'BUY' ? data.ask : direction === 'SELL' ? data.bid : data.price;
+      const stopLoss = direction === 'BUY' ? entry - (atr * profile.stopAtr) : entry + (atr * profile.stopAtr);
+      const takeProfit = direction === 'BUY' ? entry + (atr * profile.targetAtr) : entry - (atr * profile.targetAtr);
+      const stopPips = Math.abs(entry - stopLoss) / pipSize;
+      const targetPips = Math.abs(takeProfit - entry) / pipSize;
+      const rr = stopPips > 0 ? targetPips / stopPips : 0;
+
+      if (rr < profile.minRR) rejections.push(`RR ${rr.toFixed(2)} below ${profile.minRR.toFixed(2)}`);
+
+      let score = 0;
+      score += direction !== 'NO_TRADE' ? 35 : 0;
+      score += data.marketStructure !== 'RANGE' ? 15 : 0;
+      score += (htfBullish || htfBearish) ? 15 : 0;
+      score += Math.max(0, 15 - spreadPips);
+      score += Math.min(20, rr * 8);
+      score += profile.confidenceBoost;
+      score -= data.newsRisk === 'MEDIUM' ? 8 : 0;
+      score = Math.max(0, Math.min(100, Math.round(score)));
+
+      if (rejections.length > 0) score = Math.min(score, 60);
+
+      return {
+        symbol,
+        strategyId: profile.id,
+        strategyName: profile.name,
+        signalType: rejections.length === 0 ? direction : 'NO_TRADE',
+        confidence: score,
+        entry,
+        stopLoss,
+        takeProfit,
+        stopPips,
+        targetPips,
+        rr,
+        rejections
+      };
+    }
+
+    function runStrategyOptimization() {
+      Object.keys(currencyData).forEach(updateTechnicalIndicators);
+      const candidates = [];
+
+      Object.keys(currencyData).forEach(symbol => {
+        strategyProfiles.forEach(profile => {
+          const result = evaluateStrategyForSymbol(symbol, profile);
+          if (result) candidates.push(result);
+        });
+      });
+
+      candidates.sort((a, b) => b.confidence - a.confidence || b.rr - a.rr);
+      bestOptimizedStrategy = candidates[0] || null;
+      renderStrategyOptimization(candidates);
+      return bestOptimizedStrategy;
+    }
+
+    function renderStrategyOptimization(candidates = []) {
+      const best = bestOptimizedStrategy;
+      const log = document.getElementById('strategyOptimizerLog');
+      if (!best) {
+        document.getElementById('bestStrategyName').textContent = 'No setup';
+        document.getElementById('bestStrategySignal').textContent = '--';
+        document.getElementById('bestStrategyRR').textContent = '--';
+        document.getElementById('bestStrategyScore').textContent = '--';
+        if (log) log.textContent = 'No strategy candidates were available.';
+        return;
+      }
+
+      document.getElementById('bestStrategyName').textContent = `${best.symbol} ${best.strategyName}`;
+      document.getElementById('bestStrategySignal').textContent = best.signalType;
+      document.getElementById('bestStrategyRR').textContent = `1:${best.rr.toFixed(2)}`;
+      document.getElementById('bestStrategyScore').textContent = `${best.confidence}%`;
+
+      const topRows = candidates.slice(0, 5).map(item => {
+        const reason = item.rejections.length ? ` - ${item.rejections.join(', ')}` : '';
+        return `${item.symbol} ${item.strategyName}: ${item.signalType}, ${item.confidence}%, RR 1:${item.rr.toFixed(2)}${reason}`;
+      });
+      if (log) log.innerHTML = topRows.map(row => `<div>${row}</div>`).join('');
+    }
+
+    function toggleAutoPaperTrading() {
+      if (autoPaperTradingEnabled) {
+        stopAutoPaperTrading();
+      } else {
+        startAutoPaperTrading();
+      }
+    }
+
+    function startAutoPaperTrading() {
+      autoPaperTradingEnabled = true;
+      updateAutoTradingStatus();
+      autoPaperTradingTick();
+      const intervalMs = parseInt(document.getElementById('autoScanInterval').value, 10) || 30000;
+      autoPaperTradingInterval = setInterval(autoPaperTradingTick, intervalMs);
+      showStatus('Auto paper trading started in simulation mode only.', 'success');
+    }
+
+    function stopAutoPaperTrading() {
+      autoPaperTradingEnabled = false;
+      if (autoPaperTradingInterval) {
+        clearInterval(autoPaperTradingInterval);
+        autoPaperTradingInterval = null;
+      }
+      updateAutoTradingStatus();
+      showStatus('Auto paper trading stopped.', 'info');
+    }
+
+    function updateAutoTradingStatus() {
+      const status = document.getElementById('autoTradingStatus');
+      const btn = document.getElementById('autoTradingToggleBtn');
+      if (!status || !btn) return;
+
+      status.classList.toggle('active', autoPaperTradingEnabled);
+      status.innerHTML = autoPaperTradingEnabled
+        ? '<i class="fas fa-circle"></i> Auto paper trading ON'
+        : '<i class="fas fa-circle"></i> Auto paper trading OFF';
+      btn.textContent = autoPaperTradingEnabled ? 'Stop' : 'Start';
+      btn.style.background = autoPaperTradingEnabled ? 'var(--danger)' : 'var(--accent)';
+    }
+
+    function autoPaperTradingTick() {
+      const best = runStrategyOptimization();
+      const minConfidence = parseFloat(document.getElementById('autoMinConfidence').value) || 78;
+      const maxOpenTrades = parseInt(document.getElementById('autoMaxOpenTrades').value, 10) || 3;
+
+      if (!best || best.signalType === 'NO_TRADE' || best.confidence < minConfidence) return;
+      if (paperTradingAccount.openPositions.length >= maxOpenTrades) return;
+
+      const duplicate = paperTradingAccount.openPositions.some(pos =>
+        pos.symbol === best.symbol && pos.direction === best.signalType && pos.strategyId === best.strategyId
+      );
+      if (duplicate) return;
+
+      executeAutoPaperTrade(best);
+    }
+
+    function executeAutoPaperTrade(plan) {
+      const riskPercent = parseFloat(document.getElementById('autoRiskPercent').value) || 1;
+      const riskDollars = paperTradingAccount.balance * (riskPercent / 100);
+      const lotSize = Math.max(0.01, Math.min(5, Math.floor((riskDollars / (plan.stopPips * 10)) * 100) / 100));
+      const marginRequired = lotSize * 100000 * plan.entry * 0.02;
+
+      if (!isFinite(lotSize) || lotSize <= 0 || marginRequired > paperTradingAccount.balance) return;
+
+      const trade = {
+        id: Date.now(),
+        symbol: plan.symbol,
+        direction: plan.signalType,
+        lotSize,
+        entryPrice: plan.entry,
+        stopLossPrice: plan.stopLoss,
+        takeProfitPrice: plan.takeProfit,
+        stopLossPips: plan.stopPips,
+        takeProfitPips: plan.targetPips,
+        entryTime: new Date().toLocaleString(),
+        marginRequired,
+        currentPrice: plan.entry,
+        floatingPnl: 0,
+        status: 'open',
+        source: 'AI auto paper trading',
+        strategyId: plan.strategyId,
+        strategyName: plan.strategyName,
+        confidence: plan.confidence
+      };
+
+      paperTradingAccount.openPositions.push(trade);
+      paperTradingAccount.marginUsed += marginRequired;
+      savePaperTradingData();
+      renderPaperTradingDashboard();
+      showStatus(`Auto paper trade: ${plan.symbol} ${plan.signalType} via ${plan.strategyName}`, 'success');
+    }
+
     // ============== PAPER TRADING SYSTEM ==============
     function initializePaperTrading() {
       const paperBtn = document.querySelector('[data-tab="paper-trading"]');
@@ -5484,6 +5874,8 @@
       
       // Initial render of pending orders
       renderPendingOrders();
+      updateAutoTradingStatus();
+      runStrategyOptimization();
     }
 
     function executePaperTrade() {
@@ -5507,7 +5899,7 @@
       
       // Calculate position size in units
       const decimalPlaces = currencyData[symbol].decimal;
-      const pipValue = 1 / Math.pow(10, decimalPlaces);
+      const pipValue = getPipSize(symbol);
       const stopLossPrice = direction === 'BUY' 
         ? entryPrice - (stopLossPips * pipValue)
         : entryPrice + (stopLossPips * pipValue);
@@ -5534,7 +5926,7 @@
         takeProfitPrice,
         stopLossPips,
         takeProfitPips,
-        entryTime: new Date().toLocaleTimeString(),
+        entryTime: new Date().toLocaleString(),
         marginRequired,
         currentPrice: entryPrice,
         floatingPnl: 0,
@@ -5567,40 +5959,44 @@
         position.currentPrice = currencyData[position.symbol].price;
         
         // Calculate pips difference
-        const decimalPlaces = currencyData[position.symbol].decimal;
-        const pipValue = 1 / Math.pow(10, decimalPlaces);
-        const pipsDifference = Math.round(((position.currentPrice - position.entryPrice) / pipValue) * 100) / 100;
+        const pipsDifference = Math.round(calculatePips(position, position.currentPrice) * 100) / 100;
         
         // Calculate P&L
         if (position.direction === 'BUY') {
-          position.floatingPnl = (position.currentPrice - position.entryPrice) * position.lotSize * 100000;
+          position.floatingPnl = calculatePaperPnl(position, position.currentPrice);
           
           // Check if hit stop loss or take profit
           if (position.currentPrice <= position.stopLossPrice) {
-            position.floatingPnl = (position.stopLossPrice - position.entryPrice) * position.lotSize * 100000;
+            position.currentPrice = position.stopLossPrice;
+            position.floatingPnl = calculatePaperPnl(position, position.stopLossPrice);
             position.status = 'closed (SL)';
             closedPositions.push(index);
           } else if (position.currentPrice >= position.takeProfitPrice) {
-            position.floatingPnl = (position.takeProfitPrice - position.entryPrice) * position.lotSize * 100000;
+            position.currentPrice = position.takeProfitPrice;
+            position.floatingPnl = calculatePaperPnl(position, position.takeProfitPrice);
             position.status = 'closed (TP)';
             closedPositions.push(index);
           }
         } else { // SELL
-          position.floatingPnl = (position.entryPrice - position.currentPrice) * position.lotSize * 100000;
+          position.floatingPnl = calculatePaperPnl(position, position.currentPrice);
           
           // Check if hit stop loss or take profit
           if (position.currentPrice >= position.stopLossPrice) {
-            position.floatingPnl = (position.entryPrice - position.stopLossPrice) * position.lotSize * 100000;
+            position.currentPrice = position.stopLossPrice;
+            position.floatingPnl = calculatePaperPnl(position, position.stopLossPrice);
             position.status = 'closed (SL)';
             closedPositions.push(index);
           } else if (position.currentPrice <= position.takeProfitPrice) {
-            position.floatingPnl = (position.entryPrice - position.takeProfitPrice) * position.lotSize * 100000;
+            position.currentPrice = position.takeProfitPrice;
+            position.floatingPnl = calculatePaperPnl(position, position.takeProfitPrice);
             position.status = 'closed (TP)';
             closedPositions.push(index);
           }
         }
         
-        totalFloatingPnl += position.floatingPnl;
+        if (!closedPositions.includes(index)) {
+          totalFloatingPnl += position.floatingPnl;
+        }
       });
       
       // Move closed positions to closed trades
@@ -5608,6 +6004,7 @@
         const closedTrade = paperTradingAccount.openPositions.splice(index, 1)[0];
         paperTradingAccount.closedTrades.unshift(closedTrade);
         paperTradingAccount.marginUsed -= closedTrade.marginRequired;
+        paperTradingAccount.balance += closedTrade.floatingPnl;
       });
       
       // Update account balance
@@ -5643,14 +6040,13 @@
         openPositionsHTML += '<tr style="border-bottom: 2px solid var(--border);"><th style="padding:10px; text-align:left;">Symbol</th><th>Direction</th><th>Entry</th><th>Current</th><th>Pips</th><th>Floating P&L</th><th>Action</th></tr>';
         
         paperTradingAccount.openPositions.forEach(pos => {
-          const pipsChange = pos.direction === 'BUY' 
-            ? ((pos.currentPrice - pos.entryPrice) / (1/Math.pow(10, currencyData[pos.symbol].decimal)) * 100)
-            : ((pos.entryPrice - pos.currentPrice) / (1/Math.pow(10, currencyData[pos.symbol].decimal)) * 100);
+          const pipsChange = calculatePips(pos, pos.currentPrice);
           const pnlColor = pos.floatingPnl >= 0 ? 'var(--accent)' : 'var(--danger)';
           const dirColor = pos.direction === 'BUY' ? 'var(--ai-buy)' : 'var(--ai-sell)';
+          const sourceLabel = pos.strategyName ? `<div style="font-size: 0.75rem; color: var(--text-muted);">${pos.strategyName} ${pos.confidence || ''}%</div>` : '';
           
           openPositionsHTML += `<tr style="border-bottom: 1px solid var(--border);">
-            <td style="padding:10px; color: var(--text);">${pos.symbol}</td>
+            <td style="padding:10px; color: var(--text);">${pos.symbol}${sourceLabel}</td>
             <td style="color: ${dirColor}; font-weight: 600;">${pos.direction}</td>
             <td style="color: var(--text-muted);">${pos.entryPrice.toFixed(currencyData[pos.symbol].decimal)}</td>
             <td style="color: var(--text-muted);">${pos.currentPrice.toFixed(currencyData[pos.symbol].decimal)}</td>
@@ -5675,9 +6071,7 @@
         paperTradingAccount.closedTrades.forEach(trade => {
           const pnlColor = trade.floatingPnl >= 0 ? 'var(--accent)' : 'var(--danger)';
           const dirColor = trade.direction === 'BUY' ? 'var(--ai-buy)' : 'var(--ai-sell)';
-          const pipsChange = trade.direction === 'BUY'
-            ? ((trade.currentPrice - trade.entryPrice) / (1/Math.pow(10, currencyData[trade.symbol].decimal)) * 100)
-            : ((trade.entryPrice - trade.currentPrice) / (1/Math.pow(10, currencyData[trade.symbol].decimal)) * 100);
+          const pipsChange = calculatePips(trade, trade.currentPrice);
           
           historyHTML += `<tr style="border-bottom: 1px solid var(--border);">
             <td style="padding:10px; color: var(--text);">${trade.symbol}</td>
@@ -5703,6 +6097,8 @@
       const index = paperTradingAccount.openPositions.findIndex(p => p.id === tradeId);
       if (index !== -1) {
         const trade = paperTradingAccount.openPositions.splice(index, 1)[0];
+        trade.currentPrice = currencyData[trade.symbol]?.price || trade.currentPrice;
+        trade.floatingPnl = calculatePaperPnl(trade, trade.currentPrice);
         trade.status = 'closed (manual)';
         paperTradingAccount.closedTrades.unshift(trade);
         paperTradingAccount.marginUsed -= trade.marginRequired;
@@ -5718,6 +6114,7 @@
 
     function resetPaperTrading() {
       if (confirm('Reset paper trading account? This will close all positions and reset the balance.')) {
+        if (autoPaperTradingEnabled) stopAutoPaperTrading();
         paperTradingAccount = {
           initialBalance: 10000,
           balance: 10000,
@@ -5809,7 +6206,7 @@
       
       // Calculate SL and TP prices
       const decimalPlaces = data.decimal;
-      const pipValue = 1 / Math.pow(10, decimalPlaces);
+      const pipValue = getPipSize(symbol);
       const stopLossPrice = direction === 'BUY' 
         ? entryPrice - (stopLossPips * pipValue)
         : entryPrice + (stopLossPips * pipValue);
@@ -5873,7 +6270,7 @@
       
       // Calculate SL and TP prices
       const decimalPlaces = data.decimal;
-      const pipValue = 1 / Math.pow(10, decimalPlaces);
+      const pipValue = getPipSize(symbol);
       const stopLossPrice = direction === 'BUY' 
         ? orderPrice - (stopLossPips * pipValue)
         : orderPrice + (stopLossPips * pipValue);
