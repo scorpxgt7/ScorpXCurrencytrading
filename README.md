@@ -174,6 +174,8 @@ Professional AI-powered scalping assistant with real data integration, rule-base
 - Configurable scan interval, minimum confidence, risk percent, and max open trades
 - Avoids duplicate open positions for the same symbol, direction, and strategy
 - Stores strategy name and confidence on auto-generated paper trades
+- Live auto-trade monitor shows active symbol, strategy, entry/current price, real-time P&L, and distance to SL/TP
+- AI trade summary provides hold, close/trail, or risk-warning guidance from current indicator alignment and live simulated market data
 
 ### TradingView Affiliate Placement
 - TradingView affiliate banner is visible beside the embedded chart area

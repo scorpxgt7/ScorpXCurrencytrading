@@ -1570,6 +1570,64 @@
       background: rgba(34, 197, 94, 0.08);
     }
 
+    .auto-monitor {
+      margin-top: 14px;
+      display: grid;
+      grid-template-columns: 1fr 1.4fr;
+      gap: 14px;
+    }
+
+    .auto-monitor-panel {
+      background: var(--card);
+      border: 1px solid var(--border);
+      border-radius: 8px;
+      padding: 14px;
+    }
+
+    .auto-monitor-row {
+      display: flex;
+      justify-content: space-between;
+      gap: 12px;
+      padding: 8px 0;
+      border-bottom: 1px solid var(--border-light);
+    }
+
+    .auto-monitor-row:last-child {
+      border-bottom: 0;
+    }
+
+    .auto-monitor-row span:first-child {
+      color: var(--text-muted);
+    }
+
+    .auto-monitor-row span:last-child {
+      color: var(--text);
+      font-weight: 800;
+      text-align: right;
+    }
+
+    .ai-trade-summary {
+      color: var(--text);
+      font-size: 0.92rem;
+      line-height: 1.55;
+    }
+
+    .ai-trade-summary .action {
+      display: inline-flex;
+      margin-bottom: 8px;
+      padding: 5px 9px;
+      border-radius: 999px;
+      font-weight: 800;
+      background: rgba(59, 130, 246, 0.12);
+      color: var(--info);
+    }
+
+    @media (max-width: 900px) {
+      .auto-monitor {
+        grid-template-columns: 1fr;
+      }
+    }
+
     @media (max-width: 900px) {
       .strategy-grid {
         grid-template-columns: repeat(2, minmax(0, 1fr));
@@ -2958,6 +3016,38 @@
 
             <div id="strategyOptimizerLog" style="margin-top: 14px; background: var(--card); border: 1px solid var(--border); border-radius: 8px; padding: 12px; color: var(--text-muted); font-size: 0.88rem;">
               Run optimization to scan all supported pairs and strategy profiles.
+            </div>
+
+            <div class="auto-monitor">
+              <div class="auto-monitor-panel">
+                <h4 style="margin-bottom: 10px;">Live Auto Trade Status</h4>
+                <div class="auto-monitor-row">
+                  <span>Active Trade</span>
+                  <span id="autoMonitorSymbol">None</span>
+                </div>
+                <div class="auto-monitor-row">
+                  <span>Strategy</span>
+                  <span id="autoMonitorStrategy">--</span>
+                </div>
+                <div class="auto-monitor-row">
+                  <span>Entry / Current</span>
+                  <span id="autoMonitorPrices">--</span>
+                </div>
+                <div class="auto-monitor-row">
+                  <span>Live P&L</span>
+                  <span id="autoMonitorPnl">$0.00</span>
+                </div>
+                <div class="auto-monitor-row">
+                  <span>Distance to SL / TP</span>
+                  <span id="autoMonitorDistance">--</span>
+                </div>
+              </div>
+              <div class="auto-monitor-panel">
+                <h4 style="margin-bottom: 10px;">AI Trade Summary</h4>
+                <div id="autoTradeAISummary" class="ai-trade-summary">
+                  No active auto paper trade. Start auto paper trading or wait for a qualifying setup.
+                </div>
+              </div>
             </div>
           </div>
 
@@ -5802,6 +5892,7 @@
         : '<i class="fas fa-circle"></i> Auto paper trading OFF';
       btn.textContent = autoPaperTradingEnabled ? 'Stop' : 'Start';
       btn.style.background = autoPaperTradingEnabled ? 'var(--danger)' : 'var(--accent)';
+      updateAutoTradeMonitor();
     }
 
     function autoPaperTradingTick() {
@@ -5854,6 +5945,94 @@
       savePaperTradingData();
       renderPaperTradingDashboard();
       showStatus(`Auto paper trade: ${plan.symbol} ${plan.signalType} via ${plan.strategyName}`, 'success');
+    }
+
+    function getActiveAutoTrade() {
+      return paperTradingAccount.openPositions
+        .filter(pos => pos.source === 'AI auto paper trading')
+        .sort((a, b) => b.id - a.id)[0] || null;
+    }
+
+    function updateAutoTradeMonitor() {
+      const symbolEl = document.getElementById('autoMonitorSymbol');
+      const strategyEl = document.getElementById('autoMonitorStrategy');
+      const pricesEl = document.getElementById('autoMonitorPrices');
+      const pnlEl = document.getElementById('autoMonitorPnl');
+      const distanceEl = document.getElementById('autoMonitorDistance');
+      const summaryEl = document.getElementById('autoTradeAISummary');
+      if (!symbolEl || !strategyEl || !pricesEl || !pnlEl || !distanceEl || !summaryEl) return;
+
+      const trade = getActiveAutoTrade();
+      if (!trade) {
+        symbolEl.textContent = autoPaperTradingEnabled ? 'Scanning' : 'None';
+        strategyEl.textContent = bestOptimizedStrategy ? bestOptimizedStrategy.strategyName : '--';
+        pricesEl.textContent = '--';
+        pnlEl.textContent = '$0.00';
+        pnlEl.style.color = 'var(--text)';
+        distanceEl.textContent = '--';
+        summaryEl.innerHTML = autoPaperTradingEnabled
+          ? '<span class="action">SCANNING</span><div>Auto paper trading is watching all supported pairs. No setup currently meets the confidence, risk, and duplicate-trade filters.</div>'
+          : 'No active auto paper trade. Start auto paper trading or wait for a qualifying setup.';
+        return;
+      }
+
+      const data = currencyData[trade.symbol];
+      const decimals = data?.decimal || 5;
+      const currentPrice = data?.price || trade.currentPrice;
+      trade.currentPrice = currentPrice;
+      trade.floatingPnl = calculatePaperPnl(trade, currentPrice);
+
+      const pips = calculatePips(trade, currentPrice);
+      const slDistance = Math.abs(currentPrice - trade.stopLossPrice) / getPipSize(trade.symbol);
+      const tpDistance = Math.abs(trade.takeProfitPrice - currentPrice) / getPipSize(trade.symbol);
+      const pnlColor = trade.floatingPnl >= 0 ? 'var(--accent)' : 'var(--danger)';
+
+      symbolEl.textContent = `${trade.symbol} ${trade.direction}`;
+      strategyEl.textContent = `${trade.strategyName || 'Manual'} ${trade.confidence ? `(${trade.confidence}%)` : ''}`;
+      pricesEl.textContent = `${trade.entryPrice.toFixed(decimals)} / ${currentPrice.toFixed(decimals)}`;
+      pnlEl.textContent = `$${trade.floatingPnl.toFixed(2)} (${pips.toFixed(1)} pips)`;
+      pnlEl.style.color = pnlColor;
+      distanceEl.textContent = `${slDistance.toFixed(1)}p / ${tpDistance.toFixed(1)}p`;
+      summaryEl.innerHTML = buildAutoTradeAISummary(trade, data, pips, slDistance, tpDistance);
+    }
+
+    function buildAutoTradeAISummary(trade, data, pips, slDistance, tpDistance) {
+      if (!data) return '<span class="action">WAIT</span><div>Market data is unavailable for this symbol. Hold off on new action until prices refresh.</div>';
+
+      const trendAligned = trade.direction === 'BUY'
+        ? data.ema20 > data.ema50 && data.rsi14 >= 50 && data.htfStructure === 'BULLISH'
+        : data.ema20 < data.ema50 && data.rsi14 <= 50 && data.htfStructure === 'BEARISH';
+      const nearStop = slDistance <= Math.max(2, trade.stopLossPips * 0.25);
+      const nearTarget = tpDistance <= Math.max(2, trade.takeProfitPips * 0.25);
+      const profitProgress = trade.takeProfitPips > 0 ? Math.max(0, pips / trade.takeProfitPips) : 0;
+      const riskProgress = trade.stopLossPips > 0 ? Math.max(0, -pips / trade.stopLossPips) : 0;
+
+      let action = 'HOLD';
+      let guidance = 'Trend and momentum still support the current paper trade. Continue monitoring price against SL/TP.';
+      let timeframe = 'Review again on the next scan interval or after the next candle closes.';
+
+      if (nearTarget || profitProgress >= 0.8) {
+        action = 'CONSIDER CLOSE / TRAIL';
+        guidance = 'Price is close to the take-profit zone. Consider taking partial profit, closing, or trailing the stop in paper mode.';
+        timeframe = 'Decision window: now to the next candle close.';
+      } else if (nearStop || riskProgress >= 0.7) {
+        action = 'RISK WARNING';
+        guidance = 'Price is moving close to the stop-loss area. Avoid adding size; consider closing early if the next candle confirms against the trade.';
+        timeframe = 'Decision window: immediate review.';
+      } else if (!trendAligned) {
+        action = 'WATCH FOR EXIT';
+        guidance = 'The live indicator picture is no longer fully aligned with the auto-trade direction. Keep the trade on watch for an early paper exit.';
+        timeframe = 'Decision window: next 1-2 candles on the selected chart timeframe.';
+      }
+
+      return `
+        <span class="action">${action}</span>
+        <div>${guidance}</div>
+        <div style="margin-top: 8px; color: var(--text-muted);">
+          ${trade.symbol} ${trade.direction}: RSI ${data.rsi14.toFixed(1)}, EMA20 ${data.ema20.toFixed(data.decimal)}, EMA50 ${data.ema50.toFixed(data.decimal)}, HTF ${data.htfStructure}, spread ${data.spread.toFixed(2)}p.
+        </div>
+        <div style="margin-top: 8px; color: var(--text-muted);">${timeframe}</div>
+      `;
     }
 
     // ============== PAPER TRADING SYSTEM ==============
@@ -6026,6 +6205,7 @@
       document.getElementById('paperEquity').textContent = paperTradingAccount.equity.toFixed(2);
       document.getElementById('paperMarginUsed').textContent = paperTradingAccount.marginUsed.toFixed(2);
       document.getElementById('paperFloatingPnl').textContent = paperTradingAccount.floatingPnl.toFixed(2);
+      updateAutoTradeMonitor();
     }
 
     function renderPaperTradingDashboard() {
