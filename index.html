@@ -77,23 +77,27 @@
       padding: 20px;
     }
 
+    .app-shell {
+      width: 100%;
+      max-width: 1680px;
+      margin: 0 auto;
+    }
+
     .app {
       width: 100%;
-      max-width: 1600px;
-      margin: 0 auto;
       display: grid;
-      grid-template-columns: 1fr 400px;
-      gap: 24px;
+      grid-template-columns: 250px minmax(0, 1fr) 420px;
+      gap: 20px;
+      align-items: start;
     }
 
     @media (max-width: 1200px) {
       .app {
-        grid-template-columns: 1fr;
-        max-width: 1000px;
+        grid-template-columns: 220px minmax(0, 1fr);
       }
       
       .chart-container {
-        order: -1;
+        grid-column: 1 / -1;
         margin-bottom: 24px;
       }
     }
@@ -110,7 +114,8 @@
       }
       
       .app {
-        padding: 10px;
+        grid-template-columns: 1fr;
+        padding: 0;
         gap: 16px;
       }
     }
@@ -143,6 +148,14 @@
       display: flex;
       flex-direction: column;
       min-height: 500px;
+      position: sticky;
+      top: 18px;
+    }
+
+    @media (max-width: 1200px) {
+      .chart-container {
+        position: static;
+      }
     }
 
     /* ===== SCORPXGT LOGO & BRANDING ===== */
@@ -186,7 +199,7 @@
 
     .scorp-icon {
       color: var(--scorp-secondary);
-      font-size: 1.8rem;
+      font-size: 1rem;
       margin-right: 5px;
     }
 
@@ -315,47 +328,200 @@
       border-color: var(--accent);
     }
 
-    /* ===== TABS ===== */
-    .tabs {
-      display: flex;
-      gap: 10px;
+    #calculatorThemeBtn {
+      display: none;
+    }
+
+    /* ===== APP SHELL ===== */
+    .app-topbar {
+      background: color-mix(in srgb, var(--card) 88%, transparent);
+      border: 1px solid var(--border);
+      border-radius: var(--radius);
+      box-shadow: var(--shadow);
+      display: grid;
+      grid-template-columns: minmax(220px, 1fr) auto;
+      gap: 18px;
+      align-items: center;
+      padding: 14px 18px;
       margin-bottom: 20px;
-      border-bottom: 1px solid var(--border);
-      padding-bottom: 10px;
+      position: sticky;
+      top: 12px;
+      z-index: 50;
+      backdrop-filter: blur(14px);
+    }
+
+    .topbar-brand {
+      display: flex;
+      align-items: center;
+      gap: 14px;
+      min-width: 0;
+    }
+
+    .brand-mark {
+      width: 44px;
+      height: 44px;
+      border-radius: 10px;
+      display: grid;
+      place-items: center;
+      color: white;
+      background: linear-gradient(135deg, var(--scorp-primary), var(--scorp-secondary));
+      box-shadow: 0 10px 24px var(--scorp-glow);
+      flex: 0 0 auto;
+    }
+
+    .brand-title {
+      font-weight: 900;
+      font-size: 1.05rem;
+      line-height: 1.1;
+      color: var(--text);
+    }
+
+    .brand-subtitle {
+      color: var(--text-muted);
+      font-size: 0.78rem;
+      margin-top: 3px;
+    }
+
+    .topbar-status {
+      display: flex;
+      align-items: center;
+      justify-content: flex-end;
+      gap: 10px;
       flex-wrap: wrap;
     }
 
+    .status-pill {
+      border: 1px solid var(--border);
+      border-radius: 999px;
+      color: var(--text-muted);
+      background: var(--surface);
+      display: inline-flex;
+      align-items: center;
+      gap: 7px;
+      min-height: 34px;
+      padding: 6px 11px;
+      font-size: 0.78rem;
+      font-weight: 700;
+      white-space: nowrap;
+    }
+
+    .status-pill strong {
+      color: var(--text);
+      font-weight: 800;
+    }
+
+    .status-pill.safe {
+      color: var(--accent);
+      border-color: color-mix(in srgb, var(--accent) 42%, var(--border));
+      background: color-mix(in srgb, var(--accent) 12%, var(--surface));
+    }
+
+    .sidebar {
+      background: var(--card);
+      border: 1px solid var(--border);
+      border-radius: var(--radius);
+      box-shadow: var(--shadow);
+      padding: 18px;
+      position: sticky;
+      top: 96px;
+    }
+
+    .sidebar-title {
+      color: var(--text-muted);
+      font-size: 0.72rem;
+      font-weight: 800;
+      letter-spacing: 0.08em;
+      text-transform: uppercase;
+      margin: 18px 0 10px;
+    }
+
+    .workspace-heading {
+      background: linear-gradient(135deg, color-mix(in srgb, var(--accent) 16%, transparent), color-mix(in srgb, var(--info) 9%, transparent));
+      border: 1px solid var(--border);
+      border-radius: var(--radius);
+      padding: 18px 20px;
+      margin-bottom: 18px;
+    }
+
+    .workspace-heading h2 {
+      font-size: 1.3rem;
+      margin-bottom: 4px;
+    }
+
+    .workspace-heading p {
+      color: var(--text-muted);
+      font-size: 0.9rem;
+    }
+
+    .chart-console {
+      display: grid;
+      grid-template-columns: repeat(3, minmax(0, 1fr));
+      gap: 8px;
+      margin: 12px 0;
+    }
+
+    .chart-console-item {
+      background: var(--surface);
+      border: 1px solid var(--border);
+      border-radius: 8px;
+      padding: 9px;
+      min-width: 0;
+    }
+
+    .chart-console-label {
+      color: var(--text-muted);
+      font-size: 0.68rem;
+      font-weight: 800;
+      letter-spacing: 0.04em;
+      text-transform: uppercase;
+    }
+
+    .chart-console-value {
+      color: var(--text);
+      font-size: 0.92rem;
+      font-weight: 800;
+      margin-top: 2px;
+    }
+
+    /* ===== TABS ===== */
+    .tabs {
+      display: grid;
+      gap: 7px;
+    }
+
     .tab-btn {
-      padding: 10px 20px;
+      padding: 11px 12px;
       background: transparent;
-      border: none;
+      border: 1px solid transparent;
       color: var(--text-muted);
       cursor: pointer;
-      font-size: 0.95rem;
-      font-weight: 500;
+      font-size: 0.9rem;
+      font-weight: 700;
       border-radius: 8px;
       transition: var(--transition);
       white-space: nowrap;
+      display: flex;
+      align-items: center;
+      gap: 10px;
+      text-align: left;
     }
 
     @media (max-width: 640px) {
       .tab-btn {
-        padding: 8px 12px;
+        padding: 10px 12px;
         font-size: 0.85rem;
-      }
-      
-      .tabs {
-        justify-content: center;
       }
     }
 
     .tab-btn.active {
-      background: linear-gradient(135deg, var(--scorp-primary), var(--scorp-secondary));
+      background: linear-gradient(135deg, var(--scorp-primary), color-mix(in srgb, var(--accent) 78%, var(--scorp-secondary)));
+      border-color: color-mix(in srgb, var(--accent) 34%, transparent);
       color: white;
     }
 
     .tab-btn:hover:not(.active) {
       background: var(--border-light);
+      border-color: var(--border);
     }
 
     .tab-content {
@@ -2547,6 +2713,52 @@
         min-height: 44px;
       }
     }
+
+    @media (max-width: 1200px) {
+      .sidebar {
+        top: 96px;
+      }
+    }
+
+    @media (max-width: 768px) {
+      .app-topbar {
+        grid-template-columns: 1fr;
+        position: static;
+      }
+
+      .topbar-status {
+        justify-content: flex-start;
+      }
+
+      .sidebar {
+        position: static;
+        padding: 12px;
+      }
+
+      .sidebar .scorp-logo-container {
+        display: none;
+      }
+
+      .sidebar-title {
+        margin-top: 0;
+      }
+
+      .tabs {
+        display: flex;
+        gap: 8px;
+        overflow-x: auto;
+        padding-bottom: 4px;
+        scrollbar-width: thin;
+      }
+
+      .tab-btn {
+        flex: 0 0 auto;
+      }
+
+      .workspace-heading {
+        padding: 15px;
+      }
+    }
   </style>
 
   <!-- TradingView Widget -->
@@ -2556,44 +2768,69 @@
   <!-- ScorpXGT Watermark -->
   <div class="scorp-watermark">SCORPXGT</div>
   
-  <div class="app">
-    <!-- Left Column: Main Content -->
-    <div class="main-container">
-      <!-- ScorpXGT Header -->
-      <div class="scorp-logo-container">
+  <div class="app-shell">
+    <header class="app-topbar">
+      <div class="topbar-brand">
+        <div class="brand-mark"><i class="fas fa-scorpion"></i></div>
         <div>
-          <div class="scorp-logo">Scorp</div>
-          <div class="scorp-tagline">AI-Powered Trading Solutions</div>
+          <div class="brand-title">ScorpXGT Forex & Gold Scalping</div>
+          <div class="brand-subtitle">Calculator, AI rules, charting, and paper trading in one workstation</div>
         </div>
       </div>
-
-      <!-- Tabs -->
-      <div class="tabs">
-        <button class="tab-btn active" data-tab="calculator">
-          <i class="fas fa-calculator scorp-icon"></i> Position Calculator
-        </button>
-        <button class="tab-btn" data-tab="ai-assistant">
-          <i class="fas fa-robot scorp-icon"></i> AI Trading Assistant
-        </button>
-        <button class="tab-btn" data-tab="market-data">
-          <i class="fas fa-chart-line scorp-icon"></i> Market Data
-        </button>
-        <button class="tab-btn" data-tab="trade-journal">
-          <i class="fas fa-book scorp-icon"></i> Trade Journal
-        </button>
-        <button class="tab-btn" data-tab="performance">
-          <i class="fas fa-chart-bar scorp-icon"></i> Performance
-        </button>
-        <button class="tab-btn" data-tab="settings">
-          <i class="fas fa-cog scorp-icon"></i> Settings
-        </button>
-        <button class="tab-btn" data-tab="paper-trading">
-          <i class="fas fa-copy scorp-icon"></i> Paper Trading
-        </button>
-        <button class="tab-btn" data-tab="live-auto-beta">
-          <i class="fas fa-shield-alt scorp-icon"></i> Live Auto Beta
+      <div class="topbar-status">
+        <span class="status-pill safe"><i class="fas fa-shield-alt"></i> Paper trading only</span>
+        <span class="status-pill"><i class="fas fa-signal"></i> Data <strong>Live/Fallback</strong></span>
+        <span class="status-pill"><i class="fas fa-wallet"></i> Equity <strong>$<span id="topbarEquity">10000.00</span></strong></span>
+        <button class="theme-toggle" id="themeBtn">
+          <span class="theme-icon">Dark</span>
+          <span class="theme-text">Dark Mode</span>
         </button>
       </div>
+    </header>
+
+    <div class="app">
+      <aside class="sidebar">
+        <div class="scorp-logo-container">
+          <div>
+            <div class="scorp-logo">Scorp</div>
+            <div class="scorp-tagline">AI-Powered Trading Solutions</div>
+          </div>
+        </div>
+        <div class="sidebar-title">Workspace</div>
+        <div class="tabs">
+          <button class="tab-btn active" data-tab="calculator">
+            <i class="fas fa-calculator scorp-icon"></i> Trade Setup
+          </button>
+          <button class="tab-btn" data-tab="ai-assistant">
+            <i class="fas fa-robot scorp-icon"></i> AI Assistant
+          </button>
+          <button class="tab-btn" data-tab="market-data">
+            <i class="fas fa-chart-line scorp-icon"></i> Market Data
+          </button>
+          <button class="tab-btn" data-tab="paper-trading">
+            <i class="fas fa-copy scorp-icon"></i> Paper Trading
+          </button>
+          <button class="tab-btn" data-tab="trade-journal">
+            <i class="fas fa-book scorp-icon"></i> Journal
+          </button>
+          <button class="tab-btn" data-tab="performance">
+            <i class="fas fa-chart-bar scorp-icon"></i> Performance
+          </button>
+          <button class="tab-btn" data-tab="settings">
+            <i class="fas fa-cog scorp-icon"></i> Settings
+          </button>
+          <button class="tab-btn" data-tab="live-auto-beta">
+            <i class="fas fa-shield-alt scorp-icon"></i> Live Auto Beta
+          </button>
+        </div>
+      </aside>
+
+      <!-- Main Content -->
+      <main class="main-container">
+        <div class="workspace-heading">
+          <h2>Trading Workstation</h2>
+          <p>Start with setup, validate the signal, then execute only in paper trading mode.</p>
+        </div>
 
       <div class="tab-guide" id="tabGuide">
         <div class="tab-guide-header">
@@ -2612,7 +2849,7 @@
                 <h1>Forex & Gold Scalping Calculator <span class="scorp-badge"><i class="fas fa-scorpion"></i> ScorpXGT</span></h1>
                 <p class="subtitle">Professional position sizing calculator with real-time financial data from comprehensive API.</p>
               </div>
-              <button class="theme-toggle" id="themeBtn">
+              <button class="theme-toggle" id="calculatorThemeBtn">
                 <span class="theme-icon">🌙</span>
                 <span class="theme-text">Dark Mode</span>
               </button>
@@ -3774,10 +4011,10 @@
           </div>
         </div>
       </div>
-    </div>
+      </main>
 
     <!-- Right Column: Chart -->
-    <div class="chart-container">
+    <aside class="chart-container">
       <div class="chart-header">
         <div class="chart-title">
           <i class="fas fa-chart-candles scorp-icon"></i> Live Chart
@@ -3791,6 +4028,21 @@
       <div class="price-display" id="priceDisplay">
         <span id="currentPrice">EUR/USD: 1.14996</span>
         <span id="priceChange" class="price-change positive">+0.00023</span>
+      </div>
+
+      <div class="chart-console" aria-label="Market snapshot">
+        <div class="chart-console-item">
+          <div class="chart-console-label">Mode</div>
+          <div class="chart-console-value">Scalp</div>
+        </div>
+        <div class="chart-console-item">
+          <div class="chart-console-label">Risk</div>
+          <div class="chart-console-value">Paper</div>
+        </div>
+        <div class="chart-console-item">
+          <div class="chart-console-label">Chart</div>
+          <div class="chart-console-value">5M</div>
+        </div>
       </div>
 
       <div class="chart-timeframe">
@@ -3833,7 +4085,8 @@
           <i class="fas fa-download"></i> Update All
         </button>
       </div>
-    </div>
+    </aside>
+  </div>
   </div>
 
   <!-- Chart Maximize Modal -->
@@ -7008,6 +7261,7 @@
       // Load saved paper trading data
       loadPaperTradingData();
       syncClosedPaperTradesToJournal();
+      updatePaperTradingUI();
       
       // Update prices every 5 seconds for floating P&L and check pending orders
       setInterval(() => {
@@ -7167,10 +7421,24 @@
     }
 
     function updatePaperTradingUI() {
-      document.getElementById('paperBalance').textContent = paperTradingAccount.balance.toFixed(2);
-      document.getElementById('paperEquity').textContent = paperTradingAccount.equity.toFixed(2);
-      document.getElementById('paperMarginUsed').textContent = paperTradingAccount.marginUsed.toFixed(2);
-      document.getElementById('paperFloatingPnl').textContent = paperTradingAccount.floatingPnl.toFixed(2);
+      const topbarEquity = document.getElementById('topbarEquity');
+      if (topbarEquity) topbarEquity.textContent = paperTradingAccount.equity.toFixed(2);
+
+      const paperBalance = document.getElementById('paperBalance');
+      const paperEquity = document.getElementById('paperEquity');
+      const paperMarginUsed = document.getElementById('paperMarginUsed');
+      const paperFloatingPnl = document.getElementById('paperFloatingPnl');
+
+      if (!paperBalance || !paperEquity || !paperMarginUsed || !paperFloatingPnl) {
+        updateAutoTradeMonitor();
+        if (currentTab === 'performance') renderPerformanceDashboard();
+        return;
+      }
+
+      paperBalance.textContent = paperTradingAccount.balance.toFixed(2);
+      paperEquity.textContent = paperTradingAccount.equity.toFixed(2);
+      paperMarginUsed.textContent = paperTradingAccount.marginUsed.toFixed(2);
+      paperFloatingPnl.textContent = paperTradingAccount.floatingPnl.toFixed(2);
       updateAutoTradeMonitor();
       if (currentTab === 'performance') renderPerformanceDashboard();
     }
