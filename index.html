@@ -11,52 +11,55 @@
   
   <style>
     :root {
-      --bg: #0f172a;
-      --card: #111827;
-      --text: #e5e7eb;
-      --text-muted: #94a3b8;
-      --accent: #22c55e;
-      --accent-hover: #16a34a;
-      --danger: #ef4444;
-      --warning: #eab308;
-      --info: #3b82f6;
-      --border: rgba(255, 255, 255, 0.1);
-      --border-light: rgba(255, 255, 255, 0.05);
-      --shadow: 0 8px 32px rgba(0, 0, 0, 0.4);
+      --bg: #101820;
+      --card: #17212b;
+      --surface: #1f2d3a;
+      --text: #edf3f7;
+      --text-muted: #9fb0bf;
+      --accent: #2fb7a4;
+      --accent-hover: #279c8d;
+      --danger: #e06f6f;
+      --warning: #d9a441;
+      --info: #6fa8dc;
+      --border: rgba(215, 230, 240, 0.13);
+      --border-light: rgba(215, 230, 240, 0.07);
+      --shadow: 0 12px 34px rgba(0, 0, 0, 0.28);
       --radius: 12px;
       --transition: all 0.2s ease;
-      --ai-buy: #10b981;
-      --ai-sell: #ef4444;
-      --ai-neutral: #6b7280;
-      --api-blue: #1e40af;
-      --api-green: #059669;
-      --scorp-primary: #8B0000;
-      --scorp-secondary: #FF4500;
-      --scorp-glow: rgba(139, 0, 0, 0.3);
-      --affiliate: #f59e0b;
+      --ai-buy: #47c4a7;
+      --ai-sell: #e06f6f;
+      --ai-neutral: #8393a3;
+      --api-blue: #356e9f;
+      --api-green: #2d927f;
+      --scorp-primary: #2f6f7a;
+      --scorp-secondary: #d9a441;
+      --scorp-glow: rgba(47, 183, 164, 0.18);
+      --affiliate: #d9a441;
     }
 
     [data-theme="light"] {
-      --bg: #f8fafc;
-      --card: #ffffff;
-      --text: #1e293b;
-      --text-muted: #64748b;
-      --accent: #16a34a;
-      --accent-hover: #15803d;
-      --danger: #dc2626;
-      --warning: #ca8a04;
-      --info: #2563eb;
-      --border: rgba(0, 0, 0, 0.1);
-      --border-light: rgba(0, 0, 0, 0.05);
-      --shadow: 0 8px 32px rgba(0, 0, 0, 0.08);
-      --ai-buy: #059669;
-      --ai-sell: #dc2626;
-      --ai-neutral: #9ca3af;
-      --api-blue: #1d4ed8;
-      --api-green: #047857;
-      --scorp-primary: #8B0000;
-      --scorp-secondary: #FF4500;
-      --scorp-glow: rgba(139, 0, 0, 0.1);
+      --bg: #eef3f6;
+      --card: #fbfdff;
+      --surface: #f4f8fa;
+      --text: #1d2b36;
+      --text-muted: #607181;
+      --accent: #258f82;
+      --accent-hover: #1e756c;
+      --danger: #c85d5d;
+      --warning: #b98225;
+      --info: #2d6f9f;
+      --border: rgba(29, 43, 54, 0.12);
+      --border-light: rgba(29, 43, 54, 0.06);
+      --shadow: 0 10px 28px rgba(24, 43, 56, 0.08);
+      --ai-buy: #258f82;
+      --ai-sell: #c85d5d;
+      --ai-neutral: #7d8b98;
+      --api-blue: #2d6f9f;
+      --api-green: #258f82;
+      --scorp-primary: #2f6f7a;
+      --scorp-secondary: #b98225;
+      --scorp-glow: rgba(47, 111, 122, 0.12);
+      --affiliate: #b98225;
     }
 
     * {
@@ -1842,13 +1845,147 @@
       border-bottom: 0;
     }
 
+    .beta-trade-visual {
+      display: grid;
+      grid-template-columns: 1.15fr 0.85fr;
+      gap: 16px;
+      align-items: stretch;
+      margin: 18px 0;
+    }
+
+    .beta-chart-stage {
+      position: relative;
+      min-height: 280px;
+      border: 1px solid var(--border);
+      border-radius: 10px;
+      overflow: hidden;
+      background:
+        linear-gradient(rgba(215, 230, 240, 0.035) 1px, transparent 1px),
+        linear-gradient(90deg, rgba(215, 230, 240, 0.035) 1px, transparent 1px),
+        linear-gradient(135deg, rgba(47, 183, 164, 0.12), rgba(111, 168, 220, 0.08));
+      background-size: 100% 25%, 12.5% 100%, 100% 100%;
+    }
+
+    .beta-price-line {
+      position: absolute;
+      left: 0;
+      right: 0;
+      height: 2px;
+      background: var(--info);
+      top: 50%;
+      box-shadow: 0 0 18px rgba(111, 168, 220, 0.35);
+    }
+
+    .beta-price-line::after {
+      content: attr(data-label);
+      position: absolute;
+      right: 10px;
+      top: -14px;
+      background: var(--info);
+      color: #0f1720;
+      padding: 3px 7px;
+      border-radius: 999px;
+      font-size: 0.75rem;
+      font-weight: 800;
+    }
+
+    .beta-trade-path {
+      position: absolute;
+      left: 8%;
+      right: 10%;
+      top: 22%;
+      bottom: 24%;
+    }
+
+    .beta-candle {
+      position: absolute;
+      bottom: var(--h);
+      left: var(--x);
+      width: 12px;
+      height: var(--body);
+      background: var(--c);
+      border-radius: 3px;
+      opacity: 0.9;
+      animation: betaPulse 2.6s ease-in-out infinite;
+    }
+
+    .beta-candle::before {
+      content: "";
+      position: absolute;
+      left: 5px;
+      top: -16px;
+      width: 2px;
+      height: calc(var(--body) + 32px);
+      background: var(--c);
+      opacity: 0.45;
+    }
+
+    .beta-trade-panel {
+      border: 1px solid var(--border);
+      border-radius: 10px;
+      padding: 16px;
+      background: var(--surface);
+    }
+
+    .beta-live-badge {
+      display: inline-flex;
+      align-items: center;
+      gap: 8px;
+      padding: 6px 10px;
+      border-radius: 999px;
+      color: var(--accent);
+      background: rgba(47, 183, 164, 0.12);
+      border: 1px solid rgba(47, 183, 164, 0.35);
+      font-weight: 800;
+      font-size: 0.84rem;
+    }
+
+    .beta-live-dot {
+      width: 8px;
+      height: 8px;
+      border-radius: 50%;
+      background: var(--accent);
+      box-shadow: 0 0 0 0 rgba(47, 183, 164, 0.65);
+      animation: betaPing 1.6s infinite;
+    }
+
+    .beta-trade-stat {
+      display: flex;
+      justify-content: space-between;
+      gap: 12px;
+      padding: 10px 0;
+      border-bottom: 1px solid var(--border-light);
+    }
+
+    .beta-trade-stat span:first-child {
+      color: var(--text-muted);
+    }
+
+    .beta-trade-stat span:last-child {
+      color: var(--text);
+      font-weight: 800;
+      text-align: right;
+    }
+
+    @keyframes betaPulse {
+      0%, 100% { transform: translateY(0); opacity: 0.78; }
+      50% { transform: translateY(-6px); opacity: 1; }
+    }
+
+    @keyframes betaPing {
+      70%, 100% {
+        box-shadow: 0 0 0 8px rgba(47, 183, 164, 0);
+      }
+    }
+
     @media (max-width: 900px) {
       .auto-monitor {
         grid-template-columns: 1fr;
       }
 
       .beta-live-grid,
-      .beta-live-controls {
+      .beta-live-controls,
+      .beta-trade-visual {
         grid-template-columns: 1fr;
       }
     }
@@ -3488,6 +3625,52 @@
             This static GitHub Pages app will not place real broker orders. Use this beta tab to validate settings, simulate practice execution, and prepare for an OANDA practice/FastAPI backend.
           </div>
 
+          <div class="beta-trade-visual">
+            <div class="beta-chart-stage">
+              <div class="beta-price-line" id="betaVisualPriceLine" data-label="SIM PRICE"></div>
+              <div class="beta-trade-path" aria-hidden="true">
+                <div class="beta-candle" style="--x: 4%; --h: 18%; --body: 42px; --c: var(--accent);"></div>
+                <div class="beta-candle" style="--x: 14%; --h: 30%; --body: 34px; --c: var(--accent);"></div>
+                <div class="beta-candle" style="--x: 24%; --h: 24%; --body: 48px; --c: var(--danger);"></div>
+                <div class="beta-candle" style="--x: 34%; --h: 38%; --body: 38px; --c: var(--accent);"></div>
+                <div class="beta-candle" style="--x: 44%; --h: 46%; --body: 52px; --c: var(--accent);"></div>
+                <div class="beta-candle" style="--x: 54%; --h: 42%; --body: 36px; --c: var(--danger);"></div>
+                <div class="beta-candle" style="--x: 64%; --h: 52%; --body: 44px; --c: var(--accent);"></div>
+                <div class="beta-candle" style="--x: 74%; --h: 58%; --body: 40px; --c: var(--accent);"></div>
+                <div class="beta-candle" style="--x: 84%; --h: 50%; --body: 46px; --c: var(--warning);"></div>
+              </div>
+            </div>
+            <div class="beta-trade-panel">
+              <div style="display:flex; justify-content:space-between; gap:12px; align-items:center; margin-bottom: 12px;">
+                <div>
+                  <div class="beta-live-label">Simulated Practice Feed</div>
+                  <div class="beta-live-value" id="betaVisualSymbol">EURUSD Watch</div>
+                </div>
+                <span class="beta-live-badge"><span class="beta-live-dot"></span> LIVE FEEL / SIM</span>
+              </div>
+              <div class="beta-trade-stat">
+                <span>Signal</span>
+                <span id="betaVisualSignal">Waiting</span>
+              </div>
+              <div class="beta-trade-stat">
+                <span>Sim Price</span>
+                <span id="betaVisualPrice">--</span>
+              </div>
+              <div class="beta-trade-stat">
+                <span>Projected P&L</span>
+                <span id="betaVisualPnl">$0.00</span>
+              </div>
+              <div class="beta-trade-stat">
+                <span>SL / TP Distance</span>
+                <span id="betaVisualDistance">--</span>
+              </div>
+              <div class="beta-trade-stat">
+                <span>AI Status</span>
+                <span id="betaVisualAi">Scanning safely</span>
+              </div>
+            </div>
+          </div>
+
           <div class="beta-live-grid">
             <div class="beta-live-card">
               <div class="beta-live-label">Broker Adapter</div>
@@ -4076,6 +4259,9 @@
         Object.keys(currencyData).forEach(symbol => {
           updateTechnicalIndicators(symbol);
         });
+        if (currentTab === 'live-auto-beta') {
+          updateLiveBetaVisual(bestOptimizedStrategy || runStrategyOptimization());
+        }
       }, appSettings.dataRefreshInterval);
     });
 
@@ -5901,6 +6087,7 @@
       if (!candidate) return;
       if (!plan) {
         candidate.textContent = 'No qualifying candidate is currently available.';
+        updateLiveBetaVisual(null);
         return;
       }
       candidate.innerHTML = `
@@ -5910,12 +6097,53 @@
         Confidence: <strong>${plan.confidence}%</strong><br>
         Expected RR: <strong>1:${plan.rr.toFixed(2)}</strong>
       `;
+      updateLiveBetaVisual(plan);
+    }
+
+    function updateLiveBetaVisual(plan) {
+      const symbolEl = document.getElementById('betaVisualSymbol');
+      const signalEl = document.getElementById('betaVisualSignal');
+      const priceEl = document.getElementById('betaVisualPrice');
+      const pnlEl = document.getElementById('betaVisualPnl');
+      const distanceEl = document.getElementById('betaVisualDistance');
+      const aiEl = document.getElementById('betaVisualAi');
+      const priceLine = document.getElementById('betaVisualPriceLine');
+      if (!symbolEl || !signalEl || !priceEl || !pnlEl || !distanceEl || !aiEl || !priceLine) return;
+
+      if (!plan) {
+        symbolEl.textContent = 'Scanning Watchlist';
+        signalEl.textContent = 'Waiting';
+        priceEl.textContent = '--';
+        pnlEl.textContent = '$0.00';
+        pnlEl.style.color = 'var(--text)';
+        distanceEl.textContent = '--';
+        aiEl.textContent = 'Scanning safely';
+        priceLine.dataset.label = 'SIM PRICE';
+        priceLine.style.top = '50%';
+        return;
+      }
+
+      const data = currencyData[plan.symbol] || currencyData.EURUSD;
+      const simMovePips = plan.signalType === 'BUY' ? plan.targetPips * 0.28 : -plan.targetPips * 0.28;
+      const projectedPnl = plan.signalType === 'BUY' || plan.signalType === 'SELL' ? simMovePips * 10 * 0.1 : 0;
+      const lineTop = Math.max(22, Math.min(76, 52 - (simMovePips / Math.max(plan.targetPips, 1)) * 28));
+
+      symbolEl.textContent = `${plan.symbol} ${plan.strategyName}`;
+      signalEl.textContent = `${plan.signalType} / ${plan.confidence}%`;
+      priceEl.textContent = plan.entry.toFixed(data.decimal);
+      pnlEl.textContent = `$${projectedPnl.toFixed(2)} projected`;
+      pnlEl.style.color = projectedPnl >= 0 ? 'var(--accent)' : 'var(--danger)';
+      distanceEl.textContent = `${plan.stopPips.toFixed(1)}p / ${plan.targetPips.toFixed(1)}p`;
+      aiEl.textContent = plan.signalType === 'NO_TRADE' ? 'Trade locked by safety rules' : 'Practice candidate only';
+      priceLine.dataset.label = `${plan.symbol} ${plan.entry.toFixed(data.decimal)}`;
+      priceLine.style.top = `${lineTop}%`;
     }
 
     async function checkLiveBetaBackend() {
       const backendUrl = document.getElementById('betaBackendUrl')?.value?.replace(/\/$/, '') || 'http://localhost:8000';
       const status = document.getElementById('betaBackendStatus');
       appendLiveBetaLog(`Checking backend health at ${backendUrl}/api/health`);
+      updateLiveBetaVisual(bestOptimizedStrategy || runStrategyOptimization());
 
       try {
         const response = await fetch(`${backendUrl}/api/health`, { method: 'GET' });

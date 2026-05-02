@@ -194,11 +194,17 @@ Professional AI-powered scalping assistant with real data integration, rule-base
 ### Live Auto Trading Beta Tab
 - Adds a separate beta workspace for future broker-connected auto trading
 - Real live execution is locked in the static GitHub Pages app
+- Adds a live-feeling simulated trade visual with animated candles, simulated price line, projected P&L, SL/TP distance, and AI status
 - Includes backend connection check for `GET /api/health`
 - Documents required backend endpoints for OANDA practice execution
 - Provides practice-order simulation using the existing strategy optimizer without sending broker orders
 - Includes kill switch logging and stops auto paper trading when triggered
 - Recommended future path: FastAPI backend + OANDA practice account + environment-stored credentials
+
+### Calmer Dashboard Color System
+- Global palette updated to a softer slate, teal, amber, and muted red system
+- Avoids pure black backgrounds and harsh neon accents for more comfortable longer sessions
+- Uses stronger colors mainly for action, risk, warning, and status states
 
 ### TradingView Affiliate Placement
 - TradingView affiliate banner is visible beside the embedded chart area
