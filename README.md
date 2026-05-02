@@ -191,6 +191,15 @@ Professional AI-powered scalping assistant with real data integration, rule-base
 - Optional Local Ollama mode can call `http://localhost:11434/api/generate` when Ollama is running on the user's computer
 - API keys are intentionally not hardcoded into the static app; a backend proxy should be used before adding paid/cloud AI or market-data secrets
 
+### Live Auto Trading Beta Tab
+- Adds a separate beta workspace for future broker-connected auto trading
+- Real live execution is locked in the static GitHub Pages app
+- Includes backend connection check for `GET /api/health`
+- Documents required backend endpoints for OANDA practice execution
+- Provides practice-order simulation using the existing strategy optimizer without sending broker orders
+- Includes kill switch logging and stops auto paper trading when triggered
+- Recommended future path: FastAPI backend + OANDA practice account + environment-stored credentials
+
 ### TradingView Affiliate Placement
 - TradingView affiliate banner is visible beside the embedded chart area
 - Maximized chart modal includes the same TradingView call-to-action

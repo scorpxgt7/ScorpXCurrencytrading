@@ -1768,8 +1768,87 @@
       padding: 0 12px 12px;
     }
 
+    .beta-live-grid {
+      display: grid;
+      grid-template-columns: repeat(3, minmax(0, 1fr));
+      gap: 14px;
+      margin: 18px 0;
+    }
+
+    .beta-live-card {
+      background: var(--border-light);
+      border: 1px solid var(--border);
+      border-radius: 8px;
+      padding: 14px;
+    }
+
+    .beta-live-card.warning {
+      border-color: rgba(234, 179, 8, 0.45);
+      background: rgba(234, 179, 8, 0.08);
+    }
+
+    .beta-live-card.danger {
+      border-color: rgba(239, 68, 68, 0.45);
+      background: rgba(239, 68, 68, 0.08);
+    }
+
+    .beta-live-label {
+      color: var(--text-muted);
+      font-size: 0.82rem;
+      margin-bottom: 4px;
+    }
+
+    .beta-live-value {
+      color: var(--text);
+      font-size: 1.1rem;
+      font-weight: 800;
+    }
+
+    .beta-live-controls {
+      display: grid;
+      grid-template-columns: repeat(4, minmax(0, 1fr));
+      gap: 12px;
+      margin: 16px 0;
+    }
+
+    .beta-live-controls input,
+    .beta-live-controls select {
+      width: 100%;
+      padding: 10px;
+      background: var(--card);
+      color: var(--text);
+      border: 1px solid var(--border);
+      border-radius: 6px;
+    }
+
+    .beta-live-log {
+      background: var(--card);
+      border: 1px solid var(--border);
+      border-radius: 8px;
+      padding: 12px;
+      color: var(--text-muted);
+      min-height: 140px;
+      max-height: 260px;
+      overflow-y: auto;
+      font-size: 0.9rem;
+    }
+
+    .beta-live-log div {
+      padding: 6px 0;
+      border-bottom: 1px solid var(--border-light);
+    }
+
+    .beta-live-log div:last-child {
+      border-bottom: 0;
+    }
+
     @media (max-width: 900px) {
       .auto-monitor {
+        grid-template-columns: 1fr;
+      }
+
+      .beta-live-grid,
+      .beta-live-controls {
         grid-template-columns: 1fr;
       }
     }
@@ -2373,6 +2452,9 @@
         </button>
         <button class="tab-btn" data-tab="paper-trading">
           <i class="fas fa-copy scorp-icon"></i> Paper Trading
+        </button>
+        <button class="tab-btn" data-tab="live-auto-beta">
+          <i class="fas fa-shield-alt scorp-icon"></i> Live Auto Beta
         </button>
       </div>
 
@@ -3392,6 +3474,123 @@
           </div>
         </div>
       </div>
+
+      <!-- Live Auto Trading Beta Tab -->
+      <div class="tab-content" id="live-auto-beta-tab">
+        <div class="calculator-container">
+          <div class="header">
+            <h1>Live Auto Trading Beta <span class="scorp-badge"><i class="fas fa-flask"></i> BETA</span></h1>
+            <p class="subtitle">Backend-ready broker connector workspace. Real live execution is locked until a secure backend and broker practice API are connected.</p>
+          </div>
+
+          <div class="beta-live-card danger">
+            <strong><i class="fas fa-lock"></i> Live execution locked:</strong>
+            This static GitHub Pages app will not place real broker orders. Use this beta tab to validate settings, simulate practice execution, and prepare for an OANDA practice/FastAPI backend.
+          </div>
+
+          <div class="beta-live-grid">
+            <div class="beta-live-card">
+              <div class="beta-live-label">Broker Adapter</div>
+              <div class="beta-live-value" id="betaBrokerAdapter">OANDA Practice Ready</div>
+            </div>
+            <div class="beta-live-card">
+              <div class="beta-live-label">Backend Status</div>
+              <div class="beta-live-value" id="betaBackendStatus">Not Connected</div>
+            </div>
+            <div class="beta-live-card">
+              <div class="beta-live-label">Execution Mode</div>
+              <div class="beta-live-value" id="betaExecutionMode">Practice Simulation</div>
+            </div>
+            <div class="beta-live-card">
+              <div class="beta-live-label">Risk Lock</div>
+              <div class="beta-live-value" id="betaRiskLock">Enabled</div>
+            </div>
+            <div class="beta-live-card">
+              <div class="beta-live-label">Daily Loss Guard</div>
+              <div class="beta-live-value" id="betaDailyLoss">$250.00</div>
+            </div>
+            <div class="beta-live-card">
+              <div class="beta-live-label">Kill Switch</div>
+              <div class="beta-live-value" id="betaKillSwitch">Ready</div>
+            </div>
+          </div>
+
+          <div class="beta-live-card warning">
+            <h3 style="margin-bottom: 10px;">Backend Connection Plan</h3>
+            <div style="color: var(--text-muted); line-height: 1.6;">
+              Recommended free/low-cost path: FastAPI backend + OANDA practice account first. Backend stores <code>OANDA_API_TOKEN</code>, <code>OANDA_ACCOUNT_ID</code>, and <code>OANDA_ENV=practice</code>. The frontend should only call your backend endpoints.
+            </div>
+          </div>
+
+          <div class="beta-live-controls">
+            <div>
+              <label style="display:block; color: var(--text-muted); font-size: 0.85rem; margin-bottom: 8px;">Broker</label>
+              <select id="betaBroker">
+                <option value="oanda-practice" selected>OANDA Practice</option>
+                <option value="backend-demo">Backend Demo Adapter</option>
+              </select>
+            </div>
+            <div>
+              <label style="display:block; color: var(--text-muted); font-size: 0.85rem; margin-bottom: 8px;">Backend URL</label>
+              <input id="betaBackendUrl" value="http://localhost:8000" placeholder="http://localhost:8000">
+            </div>
+            <div>
+              <label style="display:block; color: var(--text-muted); font-size: 0.85rem; margin-bottom: 8px;">Max Risk %</label>
+              <input id="betaMaxRiskPct" type="number" min="0.1" max="2" step="0.1" value="1">
+            </div>
+            <div>
+              <label style="display:block; color: var(--text-muted); font-size: 0.85rem; margin-bottom: 8px;">Max Open Trades</label>
+              <input id="betaMaxOpenTrades" type="number" min="1" max="5" step="1" value="2">
+            </div>
+          </div>
+
+          <div style="display:flex; gap: 10px; flex-wrap: wrap; margin: 16px 0;">
+            <button onclick="checkLiveBetaBackend()" style="padding: 11px 16px; background: var(--info); color: white; border: none; border-radius: 8px; font-weight: 800; cursor: pointer;">
+              <i class="fas fa-plug"></i> Check Backend
+            </button>
+            <button onclick="simulateLiveBetaOrder()" style="padding: 11px 16px; background: var(--accent); color: white; border: none; border-radius: 8px; font-weight: 800; cursor: pointer;">
+              <i class="fas fa-vial"></i> Simulate Practice Order
+            </button>
+            <button onclick="triggerLiveBetaKillSwitch()" style="padding: 11px 16px; background: var(--danger); color: white; border: none; border-radius: 8px; font-weight: 800; cursor: pointer;">
+              <i class="fas fa-stop-circle"></i> Kill Switch
+            </button>
+          </div>
+
+          <div class="beta-live-grid">
+            <div class="beta-live-card">
+              <h3 style="margin-bottom: 10px;">Required Backend Endpoints</h3>
+              <div style="color: var(--text-muted); line-height: 1.7;">
+                <code>GET /api/health</code><br>
+                <code>GET /api/account</code><br>
+                <code>GET /api/prices/:symbol</code><br>
+                <code>POST /api/practice/order</code><br>
+                <code>POST /api/practice/close</code><br>
+                <code>POST /api/kill-switch</code>
+              </div>
+            </div>
+            <div class="beta-live-card">
+              <h3 style="margin-bottom: 10px;">Safety Rules</h3>
+              <div style="color: var(--text-muted); line-height: 1.7;">
+                Paper/practice mode first<br>
+                Live mode disabled by default<br>
+                Risk limit required<br>
+                Spread filter required<br>
+                Duplicate trade prevention<br>
+                Full audit log required
+              </div>
+            </div>
+            <div class="beta-live-card">
+              <h3 style="margin-bottom: 10px;">Current Candidate</h3>
+              <div id="betaCurrentCandidate" style="color: var(--text-muted); line-height: 1.7;">Run strategy optimization or simulate a practice order to see the active candidate.</div>
+            </div>
+          </div>
+
+          <h3 style="margin: 20px 0 10px;">Beta Execution Log</h3>
+          <div class="beta-live-log" id="betaLiveLog">
+            <div>Live Auto Beta initialized. Waiting for backend check or practice simulation.</div>
+          </div>
+        </div>
+      </div>
     </div>
 
     <!-- Right Column: Chart -->
@@ -3662,6 +3861,10 @@
       'paper-trading': {
         title: 'Paper Trading Guide',
         body: '<p>This tab is the main simulation workspace.</p><ul><li>Use Optimize to scan strategies and Start to enable auto paper trading.</li><li>Live Auto Trade Status shows active position, strategy, P&L, and SL/TP distance.</li><li>AI Trade Summary gives hold, watch, risk warning, or close/trail guidance.</li></ul>'
+      },
+      'live-auto-beta': {
+        title: 'Live Auto Beta Guide',
+        body: '<p>This beta tab prepares the app for broker-connected practice execution without exposing secrets in GitHub Pages.</p><ul><li>Use Check Backend when a local/backend API is running.</li><li>Use Simulate Practice Order to validate strategy/risk flow without broker execution.</li><li>Real live trading remains locked until a secure backend, broker practice account, kill switch, and audit log are implemented.</li></ul>'
       }
     };
     
@@ -5683,6 +5886,79 @@
       } catch (error) {
         return `Local Ollama did not respond (${error.message}). Falling back to built-in AI Rules.\n\n${buildLocalTradingAgentAnswer(question)}`;
       }
+    }
+
+    function appendLiveBetaLog(message) {
+      const log = document.getElementById('betaLiveLog');
+      if (!log) return;
+      const row = document.createElement('div');
+      row.textContent = `${new Date().toLocaleTimeString()} - ${message}`;
+      log.prepend(row);
+    }
+
+    function updateLiveBetaCandidate(plan) {
+      const candidate = document.getElementById('betaCurrentCandidate');
+      if (!candidate) return;
+      if (!plan) {
+        candidate.textContent = 'No qualifying candidate is currently available.';
+        return;
+      }
+      candidate.innerHTML = `
+        Symbol: <strong>${plan.symbol}</strong><br>
+        Signal: <strong>${plan.signalType}</strong><br>
+        Strategy: <strong>${plan.strategyName}</strong><br>
+        Confidence: <strong>${plan.confidence}%</strong><br>
+        Expected RR: <strong>1:${plan.rr.toFixed(2)}</strong>
+      `;
+    }
+
+    async function checkLiveBetaBackend() {
+      const backendUrl = document.getElementById('betaBackendUrl')?.value?.replace(/\/$/, '') || 'http://localhost:8000';
+      const status = document.getElementById('betaBackendStatus');
+      appendLiveBetaLog(`Checking backend health at ${backendUrl}/api/health`);
+
+      try {
+        const response = await fetch(`${backendUrl}/api/health`, { method: 'GET' });
+        if (!response.ok) throw new Error(`HTTP ${response.status}`);
+        const data = await response.json().catch(() => ({}));
+        if (status) status.textContent = data.status || 'Connected';
+        appendLiveBetaLog('Backend health check passed. Practice execution endpoints can be tested next.');
+      } catch (error) {
+        if (status) status.textContent = 'Not Connected';
+        appendLiveBetaLog(`Backend unavailable: ${error.message}. This is expected until a secure backend is running.`);
+      }
+    }
+
+    function simulateLiveBetaOrder() {
+      const maxRiskPct = parseFloat(document.getElementById('betaMaxRiskPct')?.value) || 1;
+      const maxOpenTrades = parseInt(document.getElementById('betaMaxOpenTrades')?.value, 10) || 2;
+      const plan = runStrategyOptimization();
+      updateLiveBetaCandidate(plan);
+
+      if (!plan || plan.signalType === 'NO_TRADE') {
+        appendLiveBetaLog('Practice simulation rejected: no valid strategy candidate.');
+        return;
+      }
+
+      if (paperTradingAccount.openPositions.length >= maxOpenTrades) {
+        appendLiveBetaLog(`Practice simulation rejected: open trade limit ${maxOpenTrades} reached.`);
+        return;
+      }
+
+      if (maxRiskPct > 1) {
+        appendLiveBetaLog(`Practice simulation warning: risk ${maxRiskPct}% is above conservative beta default.`);
+      }
+
+      appendLiveBetaLog(`Practice simulation approved: ${plan.symbol} ${plan.signalType} via ${plan.strategyName}. No broker order was sent.`);
+      showStatus('Live Auto Beta simulated a practice order. No real broker order was sent.', 'info');
+    }
+
+    function triggerLiveBetaKillSwitch() {
+      const killSwitch = document.getElementById('betaKillSwitch');
+      if (killSwitch) killSwitch.textContent = 'Triggered';
+      if (autoPaperTradingEnabled) stopAutoPaperTrading();
+      appendLiveBetaLog('Kill switch triggered. Auto paper trading stopped. Live broker execution remains locked.');
+      showStatus('Kill switch triggered. Auto systems stopped in beta mode.', 'warning');
     }
 
     // ============== LIVE API INTEGRATION ==============
