@@ -5352,28 +5352,77 @@
       }
     }
 
-    function recordTrade(symbol, direction, entryPrice, exitPrice, riskAmount, rewardAmount, confidence) {
+    function recordTrade(symbol, direction, entryPrice, exitPrice, riskAmount, rewardAmount, confidence, options = {}) {
+      const profit = options.profit !== undefined ? options.profit : rewardAmount - riskAmount;
       const trade = {
-        id: Date.now(),
+        id: options.id || Date.now(),
         symbol,
         direction,
         entryPrice,
         exitPrice,
         riskAmount,
         rewardAmount,
-        profit: rewardAmount - riskAmount,
-        profitLoss: (exitPrice - entryPrice) * 100000,
+        profit,
+        profitLoss: profit,
         confidence,
-        timestamp: new Date().toLocaleString(),
-        status: 'closed'
+        timestamp: options.timestamp || new Date().toLocaleString(),
+        status: options.status || 'closed',
+        source: options.source || 'manual',
+        strategyName: options.strategyName || ''
       };
       
       tradeJournal.push(trade);
       saveTradeJournal();
       updatePerformanceStats();
+      refreshJournalAndPerformanceViews();
       
-      showStatus(`Trade recorded: ${symbol} ${direction} @ ${entryPrice.toFixed(5)}`, 'success');
+      if (!options.silent) {
+        showStatus(`Trade recorded: ${symbol} ${direction} @ ${entryPrice.toFixed(5)}`, 'success');
+      }
       return trade;
+    }
+
+    function syncPaperTradeToJournal(paperTrade) {
+      if (!paperTrade || paperTrade.journalSynced) return;
+
+      const journalId = `paper-${paperTrade.id}`;
+      if (tradeJournal.some(trade => trade.id === journalId)) {
+        paperTrade.journalSynced = true;
+        return;
+      }
+
+      recordTrade(
+        paperTrade.symbol,
+        paperTrade.direction,
+        paperTrade.entryPrice,
+        paperTrade.currentPrice,
+        Math.max(0, -paperTrade.floatingPnl),
+        Math.max(0, paperTrade.floatingPnl),
+        paperTrade.confidence || 0,
+        {
+          id: journalId,
+          profit: paperTrade.floatingPnl,
+          timestamp: paperTrade.exitTime || new Date().toLocaleString(),
+          status: paperTrade.status,
+          source: paperTrade.source || 'paper trading',
+          strategyName: paperTrade.strategyName || '',
+          silent: true
+        }
+      );
+
+      paperTrade.journalSynced = true;
+    }
+
+    function syncClosedPaperTradesToJournal() {
+      paperTradingAccount.closedTrades.forEach(syncPaperTradeToJournal);
+      savePaperTradingData();
+      refreshJournalAndPerformanceViews();
+    }
+
+    function refreshJournalAndPerformanceViews() {
+      updatePerformanceStats();
+      if (currentTab === 'trade-journal') renderTradeJournal();
+      if (currentTab === 'performance') renderPerformanceDashboard();
     }
 
     function renderTradeJournal() {
@@ -5389,7 +5438,7 @@
         content += '<p style="color: var(--text-muted); text-align: center; padding: 40px;">No trades recorded yet.</p>';
       } else {
         content += '<table style="width:100%; border-collapse: collapse; font-size: 0.9rem;">';
-        content += '<tr style="border-bottom: 2px solid var(--border);"><th style="padding:10px; text-align:left;">Symbol</th><th>Direction</th><th>Entry</th><th>Exit</th><th>PnL</th><th>Time</th></tr>';
+        content += '<tr style="border-bottom: 2px solid var(--border);"><th style="padding:10px; text-align:left;">Symbol</th><th>Direction</th><th>Entry</th><th>Exit</th><th>PnL</th><th>Source</th><th>Time</th></tr>';
         
         tradeJournal.forEach(trade => {
           const pnlColor = trade.profitLoss >= 0 ? 'var(--accent)' : 'var(--danger)';
@@ -5399,6 +5448,7 @@
             <td style="color: var(--text-muted);">${trade.entryPrice.toFixed(5)}</td>
             <td style="color: var(--text-muted);">${trade.exitPrice.toFixed(5)}</td>
             <td style="color: ${pnlColor}; font-weight: 600;">$${trade.profit.toFixed(2)}</td>
+            <td style="color: var(--text-muted);">${trade.strategyName || trade.source || 'manual'}</td>
             <td style="color: var(--text-muted);">${trade.timestamp}</td>
           </tr>`;
         });
@@ -5458,6 +5508,7 @@
     function updatePerformanceStats() {
       if (tradeJournal.length === 0) {
         performanceStats = { totalTrades: 0, winTrades: 0, lossTrades: 0, totalProfit: 0, winRate: 0, avgProfitPerTrade: 0 };
+        savePerformanceStats();
         return;
       }
       
@@ -5479,6 +5530,10 @@
       }
       
       const stats = performanceStats;
+      const livePnl = paperTradingAccount.floatingPnl || 0;
+      const equity = paperTradingAccount.equity || paperTradingAccount.balance;
+      const openPaperTrades = paperTradingAccount.openPositions.length;
+      const closedPaperTrades = paperTradingAccount.closedTrades.length;
       const content = `
         <div class="ai-assistant-container">
           <h2>📊 Performance Dashboard</h2>
@@ -5504,6 +5559,27 @@
             <h3 style="margin-bottom: 10px;">Quick Stats</h3>
             <p style="color: var(--text-muted);">✓ Winning Trades: ${stats.winTrades}</p>
             <p style="color: var(--text-muted);">✗ Losing Trades: ${stats.lossTrades}</p>
+          </div>
+          <div style="background: var(--border-light); padding: 15px; border-radius: 8px; margin-top: 20px;">
+            <h3 style="margin-bottom: 10px;">Live Paper Trading</h3>
+            <div style="display: grid; grid-template-columns: repeat(4, 1fr); gap: 12px;">
+              <div>
+                <div style="color: var(--text-muted); font-size: 0.85rem;">Open Trades</div>
+                <div style="font-size: 1.25rem; font-weight: 800; color: var(--text);">${openPaperTrades}</div>
+              </div>
+              <div>
+                <div style="color: var(--text-muted); font-size: 0.85rem;">Closed Paper Trades</div>
+                <div style="font-size: 1.25rem; font-weight: 800; color: var(--text);">${closedPaperTrades}</div>
+              </div>
+              <div>
+                <div style="color: var(--text-muted); font-size: 0.85rem;">Floating P&L</div>
+                <div style="font-size: 1.25rem; font-weight: 800; color: ${livePnl >= 0 ? 'var(--accent)' : 'var(--danger)'};">$${livePnl.toFixed(2)}</div>
+              </div>
+              <div>
+                <div style="color: var(--text-muted); font-size: 0.85rem;">Paper Equity</div>
+                <div style="font-size: 1.25rem; font-weight: 800; color: var(--info);">$${equity.toFixed(2)}</div>
+              </div>
+            </div>
           </div>
         </div>
       `;
@@ -6044,6 +6120,7 @@
       
       // Load saved paper trading data
       loadPaperTradingData();
+      syncClosedPaperTradesToJournal();
       
       // Update prices every 5 seconds for floating P&L and check pending orders
       setInterval(() => {
@@ -6181,9 +6258,11 @@
       // Move closed positions to closed trades
       closedPositions.reverse().forEach(index => {
         const closedTrade = paperTradingAccount.openPositions.splice(index, 1)[0];
+        closedTrade.exitTime = new Date().toLocaleString();
         paperTradingAccount.closedTrades.unshift(closedTrade);
         paperTradingAccount.marginUsed -= closedTrade.marginRequired;
         paperTradingAccount.balance += closedTrade.floatingPnl;
+        syncPaperTradeToJournal(closedTrade);
       });
       
       // Update account balance
@@ -6206,6 +6285,7 @@
       document.getElementById('paperMarginUsed').textContent = paperTradingAccount.marginUsed.toFixed(2);
       document.getElementById('paperFloatingPnl').textContent = paperTradingAccount.floatingPnl.toFixed(2);
       updateAutoTradeMonitor();
+      if (currentTab === 'performance') renderPerformanceDashboard();
     }
 
     function renderPaperTradingDashboard() {
@@ -6280,11 +6360,13 @@
         trade.currentPrice = currencyData[trade.symbol]?.price || trade.currentPrice;
         trade.floatingPnl = calculatePaperPnl(trade, trade.currentPrice);
         trade.status = 'closed (manual)';
+        trade.exitTime = new Date().toLocaleString();
         paperTradingAccount.closedTrades.unshift(trade);
         paperTradingAccount.marginUsed -= trade.marginRequired;
         
         // Update balance with realized P&L
         paperTradingAccount.balance += trade.floatingPnl;
+        syncPaperTradeToJournal(trade);
         
         savePaperTradingData();
         renderPaperTradingDashboard();

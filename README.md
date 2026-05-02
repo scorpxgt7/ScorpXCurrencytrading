@@ -176,6 +176,8 @@ Professional AI-powered scalping assistant with real data integration, rule-base
 - Stores strategy name and confidence on auto-generated paper trades
 - Live auto-trade monitor shows active symbol, strategy, entry/current price, real-time P&L, and distance to SL/TP
 - AI trade summary provides hold, close/trail, or risk-warning guidance from current indicator alignment and live simulated market data
+- Closed paper trades sync into the Trade Journal automatically
+- Performance Dashboard refreshes with journal totals plus live paper-trading equity, open trades, and floating P&L
 
 ### TradingView Affiliate Placement
 - TradingView affiliate banner is visible beside the embedded chart area
