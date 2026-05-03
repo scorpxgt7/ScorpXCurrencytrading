@@ -2242,6 +2242,25 @@
       .tradingview-affiliate-banner {
         margin: 12px 0;
       }
+
+      #paper-trading-tab [style*="grid-template-columns: repeat(7"],
+      #paper-trading-tab [style*="grid-template-columns: repeat(4"],
+      #paper-trading-tab [style*="grid-template-columns: repeat(3"] {
+        grid-template-columns: repeat(2, minmax(0, 1fr)) !important;
+      }
+    }
+
+    @media (max-width: 560px) {
+      #paper-trading-tab [style*="grid-template-columns: repeat(7"],
+      #paper-trading-tab [style*="grid-template-columns: repeat(4"],
+      #paper-trading-tab [style*="grid-template-columns: repeat(3"] {
+        grid-template-columns: 1fr !important;
+      }
+
+      #paper-trading-tab [style*="display: flex; gap: 10px"] {
+        align-items: stretch !important;
+        flex-direction: column !important;
+      }
     }
 
     .chart-type-btn {
@@ -3617,8 +3636,8 @@
             <div class="scorp-footer">
               <p><strong>Powered by ScorpXGT Trading Systems</strong><br>
               <span style="font-size: 0.8rem; opacity: 0.7;">
-                API Key: d5ba5h1r01qq0hq2lge0d5ba5h1r01qq0hq2lgeg | Base URL: /api/v1<br>
-                Comprehensive financial API with RESTful endpoints
+                Public market data fallback enabled. Keep private API keys on a backend, never in GitHub Pages.<br>
+                Comprehensive financial data workflow with REST-ready integration points
               </span></p>
             </div>
           </div>
@@ -4467,6 +4486,7 @@
               currencyData[symbol].price = response.price;
               currencyData[symbol].bid = response.bid;
               currencyData[symbol].ask = response.ask;
+              currencyData[symbol].spread = Math.abs(response.ask - response.bid) / getPipSize(symbol);
               currencyData[symbol].change = response.price - oldPrice;
             }
           } catch (e) {
@@ -4486,13 +4506,15 @@
       return new Promise((resolve) => {
         setTimeout(() => {
           const current = currencyData[symbol];
-          const volatility = (Math.random() - 0.5) * 0.0002;
+          const pipSize = getPipSize(symbol);
+          const volatility = (Math.random() - 0.5) * pipSize * 2;
           const newPrice = current.price + volatility;
+          const halfSpread = pipSize * 0.5;
           
           resolve({
             price: newPrice,
-            bid: newPrice - 0.00005,
-            ask: newPrice + 0.00005
+            bid: newPrice - halfSpread,
+            ask: newPrice + halfSpread
           });
         }, 100);
       });
@@ -4520,6 +4542,24 @@
 
     function getPipSize(symbol) {
       return symbol === 'XAUUSD' || symbol.includes('JPY') ? 0.01 : 0.0001;
+    }
+
+    function getActiveCalculatorSymbol() {
+      return document.querySelector('.currency-badge.active')?.dataset.currency || 'EURUSD';
+    }
+
+    function formatPrice(symbol, value) {
+      const decimals = currencyData[symbol]?.decimal ?? (symbol === 'XAUUSD' ? 2 : symbol.includes('JPY') ? 3 : 5);
+      return Number(value).toFixed(decimals);
+    }
+
+    function calculateMarginRequired(symbol, lotSize, entryPrice) {
+      const notionalPrice = symbol.includes('JPY') ? 1 : entryPrice;
+      return lotSize * 100000 * notionalPrice * 0.02;
+    }
+
+    function getAvailablePaperMargin() {
+      return Math.max(0, paperTradingAccount.equity - paperTradingAccount.marginUsed);
     }
 
     function calculatePaperPnl(position, exitPrice) {
@@ -4858,6 +4898,8 @@
     }
 
     function calculatePosition() {
+      const symbol = getActiveCalculatorSymbol();
+      const pipSize = getPipSize(symbol);
       // Get input values
       const entry = parseFloat(document.getElementById('entry').value);
       const stop = parseFloat(document.getElementById('stop').value);
@@ -4892,9 +4934,9 @@
         return;
       }
       
-      // Calculate pips (for EUR/USD, 1 pip = 0.0001)
-      const pipsStop = Math.abs(entry - stop) / 0.0001;
-      const pipsTake = Math.abs(entry - take) / 0.0001;
+      // Calculate pips using the active instrument's pip size.
+      const pipsStop = Math.abs(entry - stop) / pipSize;
+      const pipsTake = Math.abs(entry - take) / pipSize;
       const rrRatio = pipsTake / pipsStop;
       const riskUsd = balance * (riskPct / 100);
       
@@ -4913,16 +4955,16 @@
       document.getElementById('units').textContent = Math.round(units).toLocaleString();
       
       // Update trade direction indicators
-      updateTradeDirectionDisplay(isLong, pipsStop, pipsTake, entry, stop, take);
+      updateTradeDirectionDisplay(symbol, isLong, pipsStop, pipsTake, entry, stop, take);
       
       // Show results
       document.getElementById('result').classList.add('show');
       
       // Analyze trade
-      analyzeTrade(pipsStop, rrRatio, riskPct, lots, isLong);
+      analyzeTrade(symbol, pipsStop, rrRatio, riskPct, lots, isLong);
     }
 
-    function updateTradeDirectionDisplay(isLong, pipsStop, pipsTake, entry, stop, take) {
+    function updateTradeDirectionDisplay(symbol, isLong, pipsStop, pipsTake, entry, stop, take) {
       const tradeDirection = document.getElementById('tradeDirection');
       const directionValue = document.getElementById('directionValue');
       const directionDetails = document.getElementById('directionDetails');
@@ -4945,7 +4987,7 @@
         // LONG TRADE indicators
         directionValue.textContent = 'LONG (BUY)';
         directionValue.className = 'trade-direction-value long';
-        directionDetails.textContent = `Buy at ${entry.toFixed(5)}, target ${take.toFixed(5)}, stop at ${stop.toFixed(5)}`;
+        directionDetails.textContent = `Buy at ${formatPrice(symbol, entry)}, target ${formatPrice(symbol, take)}, stop at ${formatPrice(symbol, stop)}`;
         
         tradeIcon.innerHTML = '<i class="fas fa-arrow-up"></i>';
         tradeIcon.className = 'trade-icon long';
@@ -4956,9 +4998,9 @@
         directionBadge.className = 'direction-badge long';
         directionBadge.style.display = 'inline-flex';
         
-        directionText.innerHTML = `<span style="color: var(--ai-buy); font-weight: 700;"><i class="fas fa-arrow-up"></i> BUY at ${entry.toFixed(5)}</span><br>
-                                  Target: <span style="color: var(--accent); font-weight: 600;">${take.toFixed(5)} (+${pipsTake.toFixed(1)} pips)</span><br>
-                                  Stop: <span style="color: var(--danger); font-weight: 600;">${stop.toFixed(5)} (-${pipsStop.toFixed(1)} pips)</span>`;
+        directionText.innerHTML = `<span style="color: var(--ai-buy); font-weight: 700;"><i class="fas fa-arrow-up"></i> BUY at ${formatPrice(symbol, entry)}</span><br>
+                                  Target: <span style="color: var(--accent); font-weight: 600;">${formatPrice(symbol, take)} (+${pipsTake.toFixed(1)} pips)</span><br>
+                                  Stop: <span style="color: var(--danger); font-weight: 600;">${formatPrice(symbol, stop)} (-${pipsStop.toFixed(1)} pips)</span>`;
         directionExplanation.textContent = 'Buy low, sell high strategy | ScorpXGT Signal';
         
         // Pip arrows for LONG
@@ -4977,7 +5019,7 @@
         // SHORT TRADE indicators
         directionValue.textContent = 'SHORT (SELL)';
         directionValue.className = 'trade-direction-value short';
-        directionDetails.textContent = `Sell at ${entry.toFixed(5)}, target ${take.toFixed(5)}, stop at ${stop.toFixed(5)}`;
+        directionDetails.textContent = `Sell at ${formatPrice(symbol, entry)}, target ${formatPrice(symbol, take)}, stop at ${formatPrice(symbol, stop)}`;
         
         tradeIcon.innerHTML = '<i class="fas fa-arrow-down"></i>';
         tradeIcon.className = 'trade-icon short';
@@ -4988,9 +5030,9 @@
         directionBadge.className = 'direction-badge short';
         directionBadge.style.display = 'inline-flex';
         
-        directionText.innerHTML = `<span style="color: var(--ai-sell); font-weight: 700;"><i class="fas fa-arrow-down"></i> SELL at ${entry.toFixed(5)}</span><br>
-                                  Target: <span style="color: var(--accent); font-weight: 600;">${take.toFixed(5)} (+${pipsTake.toFixed(1)} pips)</span><br>
-                                  Stop: <span style="color: var(--danger); font-weight: 600;">${stop.toFixed(5)} (-${pipsStop.toFixed(1)} pips)</span>`;
+        directionText.innerHTML = `<span style="color: var(--ai-sell); font-weight: 700;"><i class="fas fa-arrow-down"></i> SELL at ${formatPrice(symbol, entry)}</span><br>
+                                  Target: <span style="color: var(--accent); font-weight: 600;">${formatPrice(symbol, take)} (+${pipsTake.toFixed(1)} pips)</span><br>
+                                  Stop: <span style="color: var(--danger); font-weight: 600;">${formatPrice(symbol, stop)} (-${pipsStop.toFixed(1)} pips)</span>`;
         directionExplanation.textContent = 'Sell high, buy back low strategy | ScorpXGT Signal';
         
         // Pip arrows for SHORT (reversed since profit is down, stop is up)
@@ -5012,7 +5054,7 @@
       pipArrows.style.display = 'flex';
     }
 
-    function analyzeTrade(pipsStop, rrRatio, riskPct, lots, isLong) {
+    function analyzeTrade(symbol, pipsStop, rrRatio, riskPct, lots, isLong) {
       let message = '';
       let type = 'success';
 
@@ -5021,7 +5063,7 @@
 
       // Add direction info to message
       const direction = isLong ? 'LONG' : 'SHORT';
-      message = `<i class="fas fa-scorpion scorp-icon"></i> ${direction} trade setup for EUR/USD. `;
+      message = `<i class="fas fa-scorpion scorp-icon"></i> ${direction} trade setup for ${symbol}. `;
 
       if (pipsStop < minPips) {
         message += `⚠️ Stop loss is very tight (under ${minPips} pips). Consider spread impact. `;
@@ -5082,15 +5124,16 @@
       const priceMatch = currentPriceText.match(/[\d.]+$/);
       
       if (priceMatch) {
+        const symbol = getActiveCalculatorSymbol();
         const currentPrice = parseFloat(priceMatch[0]);
-        document.getElementById('entry').value = currentPrice;
+        document.getElementById('entry').value = formatPrice(symbol, currentPrice);
         
         // Set stop loss and take profit based on current price
-        const isGold = currentPriceText.includes('XAU');
-        const pipSize = isGold ? 0.01 : 0.0001;
+        const pipSize = getPipSize(symbol);
+        const decimals = currencyData[symbol]?.decimal || 5;
         
-        document.getElementById('stop').value = (currentPrice - (pipSize * 20)).toFixed(isGold ? 2 : 5);
-        document.getElementById('take').value = (currentPrice + (pipSize * 40)).toFixed(isGold ? 2 : 5);
+        document.getElementById('stop').value = (currentPrice - (pipSize * 20)).toFixed(decimals);
+        document.getElementById('take').value = (currentPrice + (pipSize * 40)).toFixed(decimals);
         
         calculatePosition();
         showStatus('✅ Prices synced from chart!', 'success');
@@ -5776,7 +5819,7 @@
       
       const tvSymbol = chartSymbols[symbol] || 'FX:EURUSD';
       const data = currencyData[symbol] || currencyData.EURUSD;
-      const decimalPlaces = symbol === 'XAUUSD' ? 2 : 5;
+      const decimalPlaces = data.decimal || 5;
       
       // Update price display
       document.getElementById('currentPrice').textContent = `${symbol}: ${data.price.toFixed(decimalPlaces)}`;
@@ -6005,18 +6048,16 @@
       const takeProfitPips = parseFloat(document.getElementById('modalTradeTakeProfit').value) || 0;
       
       // Calculate margin
-      const marginRequired = (lotSize * 100000 * entryPrice * 0.02);
+      const marginRequired = calculateMarginRequired(symbol, lotSize, entryPrice);
       document.getElementById('modalMarginRequired').textContent = marginRequired.toFixed(2);
       
       // Calculate risk/reward ratio
-      const riskReward = takeProfitPips > 0 ? (takeProfitPips / stopLossPips).toFixed(2) : '0';
+      const riskReward = takeProfitPips > 0 && stopLossPips > 0 ? (takeProfitPips / stopLossPips).toFixed(2) : '0';
       document.getElementById('modalRiskRewardRatio').textContent = riskReward + ':1';
       
       // Show stats if values are set
       const statsDiv = document.getElementById('modalTradeStats');
-      if (lotSize > 0 && entryPrice > 0 && stopLossPips > 0) {
-        statsDiv.style.display = 'block';
-      }
+      statsDiv.style.display = lotSize > 0 && entryPrice > 0 && stopLossPips > 0 && takeProfitPips > 0 ? 'block' : 'none';
     }
 
     function executeModalTrade() {
@@ -6059,10 +6100,10 @@
         : entryPrice - (takeProfitPips * pipValue);
       
       // Calculate margin requirement
-      const marginRequired = (lotSize * 100000 * entryPrice * 0.02);
+      const marginRequired = calculateMarginRequired(symbol, lotSize, entryPrice);
       
-      if (marginRequired > paperTradingAccount.balance) {
-        showStatus('Insufficient balance for this trade. Required: $' + marginRequired.toFixed(2), 'error');
+      if (marginRequired > getAvailablePaperMargin()) {
+        showStatus('Insufficient free margin for this trade. Required: $' + marginRequired.toFixed(2), 'error');
         return;
       }
       
@@ -6532,9 +6573,11 @@
               const rate = data.rates[quote];
               if (rate) {
                 const oldPrice = currencyData[symbol].price;
+                const halfSpread = getPipSize(symbol) * 0.5;
                 currencyData[symbol].price = rate;
-                currencyData[symbol].bid = rate - 0.00002;
-                currencyData[symbol].ask = rate + 0.00002;
+                currencyData[symbol].bid = rate - halfSpread;
+                currencyData[symbol].ask = rate + halfSpread;
+                currencyData[symbol].spread = Math.abs(currencyData[symbol].ask - currencyData[symbol].bid) / getPipSize(symbol);
                 currencyData[symbol].change = rate - oldPrice;
                 currencyData[symbol].dataType = 'LIVE_API';
               }
@@ -6902,7 +6945,7 @@
             </div>
             
             <div style="margin-bottom: 15px;">
-              <label style="display: block; color: var(--text); margin-bottom: 8px;">Confidence Threshold: <span id="confidenceValue">${alertSettings.confidenceThreshold}%</span></label>
+                <label style="display: block; color: var(--text); margin-bottom: 8px;">Confidence Threshold: <span id="settingsConfidenceValue">${alertSettings.confidenceThreshold}%</span></label>
               <input type="range" id="confidenceSlider" min="0" max="100" value="${alertSettings.confidenceThreshold}" style="width: 100%;">
             </div>
             
@@ -6936,7 +6979,7 @@
       
       document.getElementById('confidenceSlider').addEventListener('input', (e) => {
         alertSettings.confidenceThreshold = parseInt(e.target.value);
-        document.getElementById('confidenceValue').textContent = e.target.value + '%';
+        document.getElementById('settingsConfidenceValue').textContent = e.target.value + '%';
       });
       
       document.getElementById('refreshSlider').addEventListener('input', (e) => {
@@ -6954,7 +6997,23 @@
           localStorage.clear();
           tradeJournal = [];
           performanceStats = { totalTrades: 0, winTrades: 0, lossTrades: 0, totalProfit: 0, winRate: 0 };
+          paperTradingAccount = {
+            initialBalance: 10000,
+            balance: 10000,
+            equity: 10000,
+            marginUsed: 0,
+            openPositions: [],
+            closedTrades: [],
+            floatingPnl: 0
+          };
+          pendingOrders = [];
           appSettings = { liveApiEnabled: true, selectedApi: 'exchangerate-api', dataRefreshInterval: 30000, indicatorType: 'advanced' };
+          alertSettings = { soundEnabled: true, notificationsEnabled: false, confidenceThreshold: 70 };
+          saveAppSettings();
+          savePaperTradingData();
+          refreshJournalAndPerformanceViews();
+          updatePaperTradingUI();
+          renderPendingOrders();
           showStatus('All data cleared!', 'success');
         }
       });
@@ -7206,9 +7265,9 @@
       const riskPercent = parseFloat(document.getElementById('autoRiskPercent').value) || 1;
       const riskDollars = paperTradingAccount.balance * (riskPercent / 100);
       const lotSize = Math.max(0.01, Math.min(5, Math.floor((riskDollars / (plan.stopPips * 10)) * 100) / 100));
-      const marginRequired = lotSize * 100000 * plan.entry * 0.02;
+      const marginRequired = calculateMarginRequired(plan.symbol, lotSize, plan.entry);
 
-      if (!isFinite(lotSize) || lotSize <= 0 || marginRequired > paperTradingAccount.balance) return;
+      if (!isFinite(lotSize) || lotSize <= 0 || marginRequired > getAvailablePaperMargin()) return;
 
       const trade = {
         id: Date.now(),
@@ -7369,6 +7428,11 @@
         return;
       }
 
+      if (!stopLossPips || stopLossPips <= 0 || !takeProfitPips || takeProfitPips <= 0) {
+        showStatus('Stop Loss and Take Profit must be greater than 0', 'error');
+        return;
+      }
+
       const duplicateOpenPosition = paperTradingAccount.openPositions.find(pos =>
         pos.symbol === symbol && pos.direction === direction
       );
@@ -7388,10 +7452,10 @@
         : entryPrice - (takeProfitPips * pipValue);
       
       // Calculate margin requirement (2% per standard lot)
-      const marginRequired = (lotSize * 100000 * entryPrice * 0.02);
+      const marginRequired = calculateMarginRequired(symbol, lotSize, entryPrice);
       
-      if (marginRequired > paperTradingAccount.balance) {
-        showStatus('Insufficient balance for this trade. Required: $' + marginRequired.toFixed(2), 'error');
+      if (marginRequired > getAvailablePaperMargin()) {
+        showStatus('Insufficient free margin for this trade. Required: $' + marginRequired.toFixed(2), 'error');
         return;
       }
       
@@ -7484,7 +7548,7 @@
         const closedTrade = paperTradingAccount.openPositions.splice(index, 1)[0];
         closedTrade.exitTime = new Date().toLocaleString();
         paperTradingAccount.closedTrades.unshift(closedTrade);
-        paperTradingAccount.marginUsed -= closedTrade.marginRequired;
+        paperTradingAccount.marginUsed = Math.max(0, paperTradingAccount.marginUsed - closedTrade.marginRequired);
         paperTradingAccount.balance += closedTrade.floatingPnl;
         syncPaperTradeToJournal(closedTrade);
       });
@@ -7619,7 +7683,7 @@
         trade.status = 'closed (manual)';
         trade.exitTime = new Date().toLocaleString();
         paperTradingAccount.closedTrades.unshift(trade);
-        paperTradingAccount.marginUsed -= trade.marginRequired;
+        paperTradingAccount.marginUsed = Math.max(0, paperTradingAccount.marginUsed - trade.marginRequired);
         
         // Update balance with realized P&L
         paperTradingAccount.balance += trade.floatingPnl;
@@ -7717,9 +7781,9 @@
       }
       
       // Calculate margin requirement
-      const marginRequired = (lotSize * 100000 * entryPrice * 0.02);
-      if (marginRequired > paperTradingAccount.balance) {
-        showStatus('Insufficient balance for this trade. Required: $' + marginRequired.toFixed(2), 'error');
+      const marginRequired = calculateMarginRequired(symbol, lotSize, entryPrice);
+      if (marginRequired > getAvailablePaperMargin()) {
+        showStatus('Insufficient free margin for this trade. Required: $' + marginRequired.toFixed(2), 'error');
         return;
       }
       
@@ -7878,9 +7942,9 @@
         
         if (shouldTrigger) {
           // Execute the pending order as a market order at the current price
-          const marginRequired = (order.lotSize * 100000 * data.price * 0.02);
+          const marginRequired = calculateMarginRequired(order.symbol, order.lotSize, data.price);
           
-          if (marginRequired <= paperTradingAccount.balance) {
+          if (marginRequired <= getAvailablePaperMargin()) {
             const trade = {
               id: Date.now(),
               symbol: order.symbol,
