@@ -1,0 +1,11 @@
+{
+  "name": "scorpxcurrencytrading",
+  "version": "1.0.0",
+  "private": true,
+  "description": "ScorpXGT paper-first forex and gold trading cockpit",
+  "scripts": {
+    "start": "node backend/server.js",
+    "backend": "node backend/server.js",
+    "dev": "node backend/server.js"
+  }
+}

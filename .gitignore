@@ -1,0 +1,4 @@
+backend/__pycache__/
+*.pyc
+scorpx-trading-journal.db
+developer-chrome-performance-trace*.json.gz

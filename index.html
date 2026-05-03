@@ -4334,9 +4334,12 @@
     let appSettings = { 
       liveApiEnabled: true, 
       selectedApi: 'exchangerate-api',
+      backendEnabled: true,
+      backendUrl: 'http://127.0.0.1:8000',
       dataRefreshInterval: 30000,
       indicatorType: 'advanced'
     };
+    let backendStatus = { checked: false, connected: false, message: 'Not checked' };
     
     // Paper Trading System
     let paperTradingAccount = {
@@ -4542,6 +4545,89 @@
 
     function getPipSize(symbol) {
       return symbol === 'XAUUSD' || symbol.includes('JPY') ? 0.01 : 0.0001;
+    }
+
+    function getBackendUrl() {
+      return (appSettings.backendUrl || 'http://127.0.0.1:8000').replace(/\/$/, '');
+    }
+
+    async function fetchBackendJson(path, options = {}) {
+      if (!appSettings.backendEnabled) throw new Error('Backend disabled');
+      const controller = new AbortController();
+      const timeout = setTimeout(() => controller.abort(), 4500);
+      try {
+        const response = await fetch(`${getBackendUrl()}${path}`, {
+          ...options,
+          headers: { 'Content-Type': 'application/json', ...(options.headers || {}) },
+          signal: controller.signal
+        });
+        if (!response.ok) throw new Error(`Backend HTTP ${response.status}`);
+        backendStatus = { checked: true, connected: true, message: 'Connected' };
+        return await response.json();
+      } catch (error) {
+        backendStatus = { checked: true, connected: false, message: error.message };
+        throw error;
+      } finally {
+        clearTimeout(timeout);
+      }
+    }
+
+    function applyBackendQuote(symbol, quote) {
+      if (!quote || !Number.isFinite(Number(quote.price))) return;
+      const current = currencyData[symbol] || currencyData.EURUSD;
+      currencyData[symbol] = {
+        ...current,
+        ...quote,
+        price: Number(quote.price),
+        bid: Number.isFinite(Number(quote.bid)) ? Number(quote.bid) : current.bid,
+        ask: Number.isFinite(Number(quote.ask)) ? Number(quote.ask) : current.ask,
+        spread: Number.isFinite(Number(quote.spread)) ? Number(quote.spread) : current.spread,
+        change: Number.isFinite(Number(quote.change)) ? Number(quote.change) : current.change,
+        decimal: quote.decimal ?? current.decimal,
+        maxSpreadAllowed: quote.maxSpreadAllowed ?? current.maxSpreadAllowed,
+        newsRisk: quote.newsRisk || current.newsRisk || 'LOW',
+        dataType: quote.dataType || quote.provider || 'BACKEND'
+      };
+    }
+
+    async function tryBackendQuote(symbol) {
+      if (!appSettings.backendEnabled) return false;
+      try {
+        const quote = await fetchBackendJson(`/api/quotes/${symbol}`);
+        applyBackendQuote(symbol, quote);
+        return true;
+      } catch (error) {
+        console.log(`Backend quote failed for ${symbol}:`, error.message);
+        return false;
+      }
+    }
+
+    async function checkFrontendBackendHealth() {
+      const statusElement = document.getElementById('backendSettingsStatus');
+      if (!appSettings.backendEnabled) {
+        backendStatus = { checked: true, connected: false, message: 'Backend disabled' };
+        if (statusElement) statusElement.textContent = 'Backend disabled';
+        return false;
+      }
+      try {
+        const health = await fetchBackendJson('/api/health');
+        const providers = health.providers || {};
+        const connectedProviders = [
+          providers.twelveData ? 'Twelve Data' : null,
+          providers.alphaVantage ? 'Alpha Vantage' : null,
+          providers.exchangeRateFallback ? 'ExchangeRate fallback' : null,
+          providers.sqlite ? 'SQLite' : null
+        ].filter(Boolean).join(', ');
+        const message = `Connected (${connectedProviders || 'paper mode'})`;
+        backendStatus = { checked: true, connected: true, message };
+        if (statusElement) statusElement.textContent = message;
+        return true;
+      } catch (error) {
+        const message = `Offline: ${error.message}`;
+        backendStatus = { checked: true, connected: false, message };
+        if (statusElement) statusElement.textContent = message;
+        return false;
+      }
     }
 
     function getActiveCalculatorSymbol() {
@@ -5604,13 +5690,16 @@
       document.getElementById('autoRefreshToggle').addEventListener('click', toggleAutoRefresh);
     }
 
-    function refreshMarketData() {
+    async function refreshMarketData() {
       const symbol = document.querySelector('[data-api-symbol].active')?.dataset.apiSymbol || 'EURUSD';
-      refreshMarketDataForSymbol(symbol);
+      await refreshMarketDataForSymbol(symbol);
       showStatus('Market data refreshed!', 'success');
     }
 
-    function refreshMarketDataForSymbol(symbol) {
+    async function refreshMarketDataForSymbol(symbol) {
+      if (appSettings.backendEnabled) {
+        await tryBackendQuote(symbol);
+      }
       const data = currencyData[symbol] || currencyData.EURUSD;
       
       // Update market data
@@ -6561,6 +6650,15 @@
     // ============== LIVE API INTEGRATION ==============
     async function fetchLivePricesWithAPI() {
       try {
+        const backendSymbols = ['EURUSD', 'GBPUSD', 'USDJPY', 'AUDUSD', 'USDCAD', 'USDCHF', 'XAUUSD'];
+        if (appSettings.backendEnabled) {
+          const backendResults = await Promise.allSettled(backendSymbols.map(symbol => tryBackendQuote(symbol)));
+          if (backendResults.some(result => result.status === 'fulfilled' && result.value)) {
+            updateLastUpdateTime();
+            return true;
+          }
+        }
+
         const symbols = ['EURUSD', 'GBPUSD', 'USDJPY', 'AUDUSD', 'USDCAD', 'USDCHF'];
         
         // Try exchangerate-api first
@@ -6631,6 +6729,7 @@
       
       tradeJournal.push(trade);
       saveTradeJournal();
+      syncTradeToBackend(trade);
       updatePerformanceStats();
       refreshJournalAndPerformanceViews();
       
@@ -6752,6 +6851,44 @@
         } catch (e) {
           console.log('Could not load trade journal');
         }
+      }
+      loadBackendJournal();
+    }
+
+    async function syncTradeToBackend(trade) {
+      if (!appSettings.backendEnabled || !trade) return;
+      try {
+        await fetchBackendJson('/api/journal', {
+          method: 'POST',
+          body: JSON.stringify({ trade })
+        });
+      } catch (error) {
+        console.log('Backend journal sync failed:', error.message);
+      }
+    }
+
+    async function loadBackendJournal() {
+      if (!appSettings.backendEnabled) return;
+      try {
+        const response = await fetchBackendJson('/api/journal');
+        const backendTrades = Array.isArray(response.trades) ? response.trades : [];
+        if (!backendTrades.length) return;
+        const tradeMap = new Map(tradeJournal.map(trade => [String(trade.id), trade]));
+        backendTrades.forEach(trade => tradeMap.set(String(trade.id), trade));
+        tradeJournal = Array.from(tradeMap.values()).sort((a, b) => new Date(b.timestamp) - new Date(a.timestamp));
+        saveTradeJournal();
+        refreshJournalAndPerformanceViews();
+      } catch (error) {
+        console.log('Backend journal load failed:', error.message);
+      }
+    }
+
+    async function clearBackendJournal() {
+      if (!appSettings.backendEnabled) return;
+      try {
+        await fetchBackendJson('/api/journal', { method: 'DELETE' });
+      } catch (error) {
+        console.log('Backend journal clear failed:', error.message);
       }
     }
 
@@ -6927,7 +7064,21 @@
                 <input type="checkbox" id="liveApiToggle" ${appSettings.liveApiEnabled ? 'checked' : ''} style="width: 20px; height: 20px;">
                 <span>Enable Live API Integration</span>
               </label>
-              <p style="color: var(--text-muted); font-size: 0.85rem; margin-top: 5px; margin-left: 30px;">Uses real market data from exchangerate-api.com</p>
+              <p style="color: var(--text-muted); font-size: 0.85rem; margin-top: 5px; margin-left: 30px;">Uses the local backend first, then falls back to browser-safe quote data.</p>
+            </div>
+
+            <div style="margin-bottom: 15px;">
+              <label style="display: flex; align-items: center; gap: 10px; color: var(--text); cursor: pointer;">
+                <input type="checkbox" id="backendToggle" ${appSettings.backendEnabled ? 'checked' : ''} style="width: 20px; height: 20px;">
+                <span>Use Secure Local Backend</span>
+              </label>
+              <p style="color: var(--text-muted); font-size: 0.85rem; margin-top: 5px; margin-left: 30px;">Keeps API keys and SQLite journal storage outside the GitHub Pages frontend.</p>
+            </div>
+
+            <div style="margin-bottom: 15px;">
+              <label style="display: block; color: var(--text); margin-bottom: 8px;">Backend URL</label>
+              <input type="url" id="backendUrlInput" value="${getBackendUrl()}" style="width: 100%; padding: 10px; background: var(--input-bg); border: 1px solid var(--border); border-radius: 8px; color: var(--text);">
+              <div id="backendSettingsStatus" style="color: ${backendStatus.connected ? 'var(--accent)' : 'var(--text-muted)'}; font-size: 0.85rem; margin-top: 8px;">${backendStatus.message}</div>
             </div>
             
             <div style="margin-bottom: 15px;">
@@ -6967,6 +7118,15 @@
       document.getElementById('liveApiToggle').addEventListener('change', (e) => {
         appSettings.liveApiEnabled = e.target.checked;
       });
+
+      document.getElementById('backendToggle').addEventListener('change', (e) => {
+        appSettings.backendEnabled = e.target.checked;
+        checkFrontendBackendHealth();
+      });
+
+      document.getElementById('backendUrlInput').addEventListener('change', (e) => {
+        appSettings.backendUrl = e.target.value.trim() || 'http://127.0.0.1:8000';
+      });
       
       document.getElementById('soundToggle').addEventListener('change', (e) => {
         alertSettings.soundEnabled = e.target.checked;
@@ -6988,7 +7148,9 @@
       });
       
       document.getElementById('saveSettingsBtn').addEventListener('click', () => {
+        appSettings.backendUrl = document.getElementById('backendUrlInput').value.trim() || 'http://127.0.0.1:8000';
         saveAppSettings();
+        checkFrontendBackendHealth();
         showStatus('Settings saved successfully!', 'success');
       });
       
@@ -7007,9 +7169,10 @@
             floatingPnl: 0
           };
           pendingOrders = [];
-          appSettings = { liveApiEnabled: true, selectedApi: 'exchangerate-api', dataRefreshInterval: 30000, indicatorType: 'advanced' };
+          appSettings = { liveApiEnabled: true, selectedApi: 'exchangerate-api', backendEnabled: true, backendUrl: 'http://127.0.0.1:8000', dataRefreshInterval: 30000, indicatorType: 'advanced' };
           alertSettings = { soundEnabled: true, notificationsEnabled: false, confidenceThreshold: 70 };
           saveAppSettings();
+          clearBackendJournal();
           savePaperTradingData();
           refreshJournalAndPerformanceViews();
           updatePaperTradingUI();
@@ -7017,6 +7180,8 @@
           showStatus('All data cleared!', 'success');
         }
       });
+
+      checkFrontendBackendHealth();
     }
 
     function saveAppSettings() {

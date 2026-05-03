@@ -2,6 +2,30 @@
 
 Professional AI-powered scalping assistant with real data integration, rule-based signal generation, and multi-currency support.
 
+## Local Backend API
+
+The app can still run as a static GitHub Pages page, but the recommended setup is to run the local backend for API-key safety and SQLite journal storage.
+
+```powershell
+npm run backend
+```
+
+Then open:
+
+```text
+http://127.0.0.1:8000
+```
+
+Optional market-data keys are read from environment variables, never from the frontend:
+
+```powershell
+$env:TWELVE_DATA_API_KEY="your_key_here"
+$env:ALPHAVANTAGE_API_KEY="your_key_here"
+npm run backend
+```
+
+The backend is paper-first: it provides quotes, derived indicators, journal storage, and placeholder research/backtest endpoints. It does not place broker orders.
+
 ## ✨ Features (Fully Enhanced)
 
 ### 📊 Position Calculator
