@@ -207,9 +207,9 @@ Professional AI-powered scalping assistant with real data integration, rule-base
 - Uses stronger colors mainly for action, risk, warning, and status states
 
 ### TradingView Affiliate Placement
-- TradingView affiliate banner is visible beside the embedded chart area
-- Maximized chart modal includes the same TradingView call-to-action
-- Affiliate URL: `https://www.tradingview.com/?aff_id=166197&source=https%3A%2F%2Fscorpxgt7.github.io%2FScorpXCurrencytrading%2F`
+- TradingView affiliate image banner is visible beside the embedded chart area
+- Maximized chart modal includes the same TradingView image banner
+- Affiliate URL: `https://www.tradingview.com/chart/?aff_id=166197&utm_source=creative&utm_lang=EN`
 
 ## Safety Notice
 This application is for education, analysis, and paper trading simulation only. It does not provide financial advice, does not guarantee profitability, and does not place live broker trades.
