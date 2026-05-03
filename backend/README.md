@@ -52,6 +52,14 @@ node backend/server.js
 - `GET /api/journal`
 - `POST /api/journal`
 - `DELETE /api/journal`
+- `GET /api/audit/logs`
+- `GET /api/pipeline/runs`
+- `GET /api/pipeline/runs/:id`
+- `POST /api/agents/quant/analyze`
+- `POST /api/agents/risk/assess`
+- `POST /api/agents/execution/simulate`
+- `POST /api/agents/pipeline/run`
+- `GET /api/portfolio/state`
 - `POST /api/backtest`
 
 All endpoints are read-first or paper-storage only. Future broker integrations should stay behind separate authenticated endpoints with read-only permissions first and explicit manual approval before any order.

@@ -4025,6 +4025,14 @@
               <div class="beta-live-label">Kill Switch</div>
               <div class="beta-live-value" id="betaKillSwitch">Ready</div>
             </div>
+            <div class="beta-live-card">
+              <div class="beta-live-label">Portfolio Heat</div>
+              <div class="beta-live-value" id="betaPortfolioHeat">0.00%</div>
+            </div>
+            <div class="beta-live-card">
+              <div class="beta-live-label">Symbol Exposure</div>
+              <div class="beta-live-value" id="betaSymbolExposure">0</div>
+            </div>
           </div>
 
           <div class="beta-live-card warning">
@@ -4073,6 +4081,9 @@
               <h3 style="margin-bottom: 10px;">Required Backend Endpoints</h3>
               <div style="color: var(--text-muted); line-height: 1.7;">
                 <code>GET /api/health</code><br>
+                <code>GET /api/portfolio/state</code><br>
+                <code>POST /api/agents/pipeline/run</code><br>
+                <code>POST /api/agents/risk/assess</code><br>
                 <code>GET /api/account</code><br>
                 <code>GET /api/prices/:symbol</code><br>
                 <code>POST /api/practice/order</code><br>
@@ -4094,6 +4105,22 @@
             <div class="beta-live-card">
               <h3 style="margin-bottom: 10px;">Current Candidate</h3>
               <div id="betaCurrentCandidate" style="color: var(--text-muted); line-height: 1.7;">Run strategy optimization or simulate a practice order to see the active candidate.</div>
+            </div>
+            <div class="beta-live-card">
+              <h3 style="margin-bottom: 10px;">Backend Audit Stream</h3>
+              <div id="betaAuditStream" style="color: var(--text-muted); line-height: 1.6;">Connect to the backend or run a practice simulation to load quant, risk, and execution events.</div>
+            </div>
+            <div class="beta-live-card">
+              <h3 style="margin-bottom: 10px;">Pipeline Run History</h3>
+              <div id="betaRunHistory" style="color: var(--text-muted); line-height: 1.6;">No backend runs loaded yet.</div>
+            </div>
+            <div class="beta-live-card">
+              <h3 style="margin-bottom: 10px;">Replay Controls</h3>
+              <div id="betaReplayControls" style="color: var(--text-muted); line-height: 1.6;">Select a pipeline run from history to preview replay actions.</div>
+            </div>
+            <div class="beta-live-card">
+              <h3 style="margin-bottom: 10px;">Run Comparison</h3>
+              <div id="betaRunComparison" style="color: var(--text-muted); line-height: 1.6;">Run comparison will appear after pipeline history loads.</div>
             </div>
           </div>
 
@@ -4358,7 +4385,10 @@
     const TRADINGVIEW_AFFILIATE_URL = 'https://www.tradingview.com/chart/?aff_id=166197&utm_source=creative&utm_lang=EN';
     let autoPaperTradingInterval = null;
     let autoPaperTradingEnabled = false;
+    let autoPaperTradingBusy = false;
     let bestOptimizedStrategy = null;
+    let liveBetaRunsCache = [];
+    let liveBetaSelectedRun = null;
     const strategyProfiles = [
       { id: 'trend-scalper', name: 'Trend Scalper', stopAtr: 1.1, targetAtr: 2.0, minRR: 1.6, confidenceBoost: 4 },
       { id: 'momentum-breakout', name: 'Momentum Breakout', stopAtr: 1.3, targetAtr: 2.7, minRR: 1.8, confidenceBoost: 8 },
@@ -6540,7 +6570,337 @@
       log.prepend(row);
     }
 
-    function updateLiveBetaCandidate(plan) {
+    function renderBetaAuditStream(events = []) {
+      const auditEl = document.getElementById('betaAuditStream');
+      if (!auditEl) return;
+      if (!Array.isArray(events) || !events.length) {
+        auditEl.textContent = 'No backend audit events yet.';
+        return;
+      }
+
+      auditEl.innerHTML = events.slice(0, 8).map(event => {
+        const time = event.timestamp ? new Date(event.timestamp).toLocaleTimeString() : '--';
+        const stage = String(event.stage || 'system').toUpperCase();
+        const status = String(event.status || '').toUpperCase() || 'INFO';
+        const symbol = event.symbol ? ` ${event.symbol}` : '';
+        const message = event.message || 'No message';
+        return `<div style="padding:8px 0; border-bottom:1px solid var(--border);">
+          <strong>${time} ${stage} ${status}${symbol}</strong><br>
+          <span>${message}</span>
+        </div>`;
+      }).join('');
+    }
+
+    function renderBetaRunHistory(runs = []) {
+      const historyEl = document.getElementById('betaRunHistory');
+      if (!historyEl) return;
+      if (!Array.isArray(runs) || !runs.length) {
+        historyEl.textContent = 'No backend runs available yet.';
+        return;
+      }
+
+      historyEl.innerHTML = runs.slice(0, 6).map(run => {
+        const time = run.timestamp ? new Date(run.timestamp).toLocaleTimeString() : '--';
+        const status = String(run.status || 'unknown').toUpperCase();
+        const symbol = run.symbol || 'Watchlist';
+        const runId = run.id || '--';
+        const shortId = runId.length > 14 ? runId.slice(0, 14) : runId;
+        const message = run.message || 'No message';
+        const isSelected = liveBetaSelectedRun?.id === runId;
+        return `<button type="button" onclick="selectLiveBetaRun('${String(runId).replace(/'/g, "\\'")}')" style="display:block; width:100%; text-align:left; padding:8px 0; border:none; border-bottom:1px solid var(--border); background:${isSelected ? 'rgba(255,255,255,0.05)' : 'transparent'}; color:inherit; cursor:pointer;">
+          <strong>${time} ${status} ${symbol}</strong><br>
+          <span>${message}</span><br>
+          <code>${shortId}</code>
+        </button>`;
+      }).join('');
+    }
+
+    function renderLiveBetaReplayControls(run) {
+      const controlsEl = document.getElementById('betaReplayControls');
+      if (!controlsEl) return;
+      if (!run) {
+        controlsEl.textContent = 'Select a pipeline run from history to preview replay actions.';
+        return;
+      }
+
+      const plan = run.approvedTrade || run.topCandidates?.[0] || null;
+      const status = String(run.status || 'unknown').toUpperCase();
+      const confidence = Number(plan?.confidence || 0).toFixed(0);
+      controlsEl.innerHTML = `
+        <div style="margin-bottom:10px;">
+          <strong>${run.symbol || 'Watchlist'} ${status}</strong><br>
+          <span>${run.message || 'No message'}</span><br>
+          <code>${run.id || '--'}</code>
+        </div>
+        <div style="margin-bottom:12px; color: var(--text-muted);">
+          Strategy: <strong>${plan?.strategyName || '--'}</strong><br>
+          Confidence: <strong>${confidence}%</strong><br>
+          Risk Verdict: <strong>${run.riskAssessment?.approved ? 'APPROVED' : 'BLOCKED'}</strong>
+        </div>
+        <div style="display:flex; gap:10px; flex-wrap:wrap;">
+          <button type="button" onclick="applySelectedLiveBetaRun('candidate')" style="padding:8px 12px; background: var(--info); color: white; border:none; border-radius:8px; cursor:pointer; font-weight:700;">Load Candidate Only</button>
+          <button type="button" onclick="applySelectedLiveBetaRun('full')" style="padding:8px 12px; background: var(--accent); color: white; border:none; border-radius:8px; cursor:pointer; font-weight:700;">Load Full Replay</button>
+        </div>
+      `;
+    }
+
+    function renderLiveBetaRunComparison() {
+      const comparisonEl = document.getElementById('betaRunComparison');
+      if (!comparisonEl) return;
+      if (!Array.isArray(liveBetaRunsCache) || !liveBetaRunsCache.length) {
+        comparisonEl.textContent = 'Run comparison will appear after pipeline history loads.';
+        return;
+      }
+
+      const primary = liveBetaSelectedRun || liveBetaRunsCache[0];
+      const secondary = liveBetaRunsCache.find(run => run.id !== primary?.id) || null;
+      if (!primary || !secondary) {
+        comparisonEl.textContent = 'At least two pipeline runs are needed for comparison.';
+        return;
+      }
+
+      const primaryPlan = primary.approvedTrade || primary.topCandidates?.[0] || {};
+      const secondaryPlan = secondary.approvedTrade || secondary.topCandidates?.[0] || {};
+      comparisonEl.innerHTML = `
+        <div style="display:grid; grid-template-columns:repeat(auto-fit, minmax(150px, 1fr)); gap:12px;">
+          <div>
+            <strong>Selected</strong><br>
+            ${primary.symbol || '--'} ${String(primary.status || '--').toUpperCase()}<br>
+            Confidence: ${Number(primaryPlan.confidence || 0).toFixed(0)}%<br>
+            Heat: ${Number(primary.riskAssessment?.projectedPortfolioHeatPct || 0).toFixed(2)}%
+          </div>
+          <div>
+            <strong>Compare Against</strong><br>
+            ${secondary.symbol || '--'} ${String(secondary.status || '--').toUpperCase()}<br>
+            Confidence: ${Number(secondaryPlan.confidence || 0).toFixed(0)}%<br>
+            Heat: ${Number(secondary.riskAssessment?.projectedPortfolioHeatPct || 0).toFixed(2)}%
+          </div>
+          <div>
+            <strong>Delta</strong><br>
+            Confidence: ${(Number(primaryPlan.confidence || 0) - Number(secondaryPlan.confidence || 0)).toFixed(0)} pts<br>
+            Heat: ${(Number(primary.riskAssessment?.projectedPortfolioHeatPct || 0) - Number(secondary.riskAssessment?.projectedPortfolioHeatPct || 0)).toFixed(2)}%<br>
+            Verdict: ${primary.riskAssessment?.approved ? 'Selected clearer' : 'Selected risk-blocked'}
+          </div>
+        </div>
+      `;
+    }
+
+    function applyLiveBetaExecutionReplay(execution, approvedTrade) {
+      const executionEl = document.getElementById('betaExecutionMode');
+      if (execution?.approved && execution.trade) {
+        const trade = execution.trade;
+        const decimals = currencyData[trade.symbol]?.decimal || 5;
+        appendLiveBetaLog(`Replayed pipeline run ${trade.symbol} ${trade.direction} @ ${Number(trade.entryPrice).toFixed(decimals)} from backend history.`);
+        if (executionEl) executionEl.textContent = 'Replay Loaded';
+        showStatus('Loaded a backend pipeline replay into the beta workspace.', 'info');
+        return;
+      }
+      if (approvedTrade) {
+        appendLiveBetaLog(`Replayed blocked pipeline run for ${approvedTrade.symbol} ${approvedTrade.signalType}.`);
+      }
+      if (executionEl) executionEl.textContent = 'Replay Loaded';
+    }
+
+    function hydrateLiveBetaRun(run, mode = 'full') {
+      if (!run) return;
+      const plan = run.approvedTrade || run.topCandidates?.[0] || null;
+      liveBetaSelectedRun = run;
+      renderBetaRunHistory(liveBetaRunsCache);
+      renderLiveBetaReplayControls(run);
+      renderLiveBetaRunComparison();
+      if (plan) {
+        bestOptimizedStrategy = plan;
+        updateLiveBetaCandidate(plan, run.riskAssessment || null);
+      } else {
+        updateLiveBetaCandidate(null);
+      }
+      if (run.riskAssessment) {
+        applyLiveBetaRiskAssessment(run.riskAssessment);
+      }
+      if (mode === 'full') {
+        applyLiveBetaExecutionReplay(run.execution, run.approvedTrade);
+      } else {
+        const executionEl = document.getElementById('betaExecutionMode');
+        if (executionEl) executionEl.textContent = 'Candidate Replay';
+        appendLiveBetaLog(`Loaded candidate-only replay for ${run.symbol || 'selected run'} from backend history.`);
+        showStatus('Loaded candidate-only replay into the beta workspace.', 'info');
+      }
+    }
+
+    async function selectLiveBetaRun(runId) {
+      if (!runId) return;
+      try {
+        const payload = await fetchLiveBetaBackendJson(`/api/pipeline/runs/${encodeURIComponent(runId)}`, { method: 'GET' });
+        const run = payload.run;
+        if (!run) throw new Error('Run not found');
+        liveBetaSelectedRun = run;
+        renderBetaRunHistory(liveBetaRunsCache);
+        renderLiveBetaReplayControls(run);
+        renderLiveBetaRunComparison();
+      } catch (error) {
+        appendLiveBetaLog(`Could not select pipeline run ${runId}: ${error.message}`);
+      }
+    }
+
+    async function applySelectedLiveBetaRun(mode = 'full') {
+      if (!liveBetaSelectedRun?.id) {
+        appendLiveBetaLog('No pipeline run is selected for replay.');
+        return;
+      }
+      try {
+        const payload = await fetchLiveBetaBackendJson(`/api/pipeline/runs/${encodeURIComponent(liveBetaSelectedRun.id)}`, { method: 'GET' });
+        const run = payload.run;
+        if (!run) throw new Error('Run not found');
+        hydrateLiveBetaRun(run, mode);
+        await refreshLiveBetaAuditStream();
+      } catch (error) {
+        appendLiveBetaLog(`Could not load pipeline run ${liveBetaSelectedRun.id}: ${error.message}`);
+      }
+    }
+
+    async function refreshLiveBetaAuditStream() {
+      try {
+        const payload = await fetchLiveBetaBackendJson('/api/audit/logs?limit=8', { method: 'GET' });
+        renderBetaAuditStream(Array.isArray(payload.events) ? payload.events : []);
+      } catch (error) {
+        renderBetaAuditStream([]);
+      }
+    }
+
+    async function refreshLiveBetaRunHistory() {
+      try {
+        const payload = await fetchLiveBetaBackendJson('/api/pipeline/runs?limit=6', { method: 'GET' });
+        liveBetaRunsCache = Array.isArray(payload.runs) ? payload.runs : [];
+        if (liveBetaSelectedRun?.id) {
+          const refreshed = liveBetaRunsCache.find(run => run.id === liveBetaSelectedRun.id);
+          if (refreshed) liveBetaSelectedRun = refreshed;
+        }
+        renderBetaRunHistory(liveBetaRunsCache);
+        renderLiveBetaReplayControls(liveBetaSelectedRun);
+        renderLiveBetaRunComparison();
+      } catch (error) {
+        liveBetaRunsCache = [];
+        renderBetaRunHistory([]);
+        renderLiveBetaReplayControls(null);
+        renderLiveBetaRunComparison();
+      }
+    }
+
+    function getLiveBetaBackendUrl() {
+      return document.getElementById('betaBackendUrl')?.value?.trim()?.replace(/\/$/, '') || 'http://localhost:8000';
+    }
+
+    async function fetchLiveBetaBackendJson(path, options = {}) {
+      const controller = new AbortController();
+      const timeout = setTimeout(() => controller.abort(), 5000);
+      try {
+        const response = await fetch(`${getLiveBetaBackendUrl()}${path}`, {
+          ...options,
+          headers: { 'Content-Type': 'application/json', ...(options.headers || {}) },
+          signal: controller.signal
+        });
+        if (!response.ok) throw new Error(`Backend HTTP ${response.status}`);
+        return await response.json();
+      } finally {
+        clearTimeout(timeout);
+      }
+    }
+
+    function getClosedLossSnapshot() {
+      const closedTrades = Array.isArray(paperTradingAccount.closedTrades) ? paperTradingAccount.closedTrades : [];
+      return Math.abs(closedTrades.reduce((sum, trade) => {
+        const pnl = Number(trade?.floatingPnl ?? trade?.profit ?? 0);
+        return pnl < 0 ? sum + pnl : sum;
+      }, 0));
+    }
+
+    function buildLiveBetaRiskRequest(plan) {
+      return {
+        plan,
+        riskPercent: parseFloat(document.getElementById('betaMaxRiskPct')?.value) || 1,
+        maxRiskPct: parseFloat(document.getElementById('betaMaxRiskPct')?.value) || 1,
+        maxOpenTrades: parseInt(document.getElementById('betaMaxOpenTrades')?.value, 10) || 2,
+        dailyLossLimit: 250,
+        dailyRealizedLoss: getClosedLossSnapshot(),
+        maxPortfolioHeatPct: 3,
+        maxSymbolExposure: 1,
+        killSwitch: (document.getElementById('betaKillSwitch')?.textContent || '').toLowerCase().includes('triggered'),
+        account: {
+          balance: paperTradingAccount.balance,
+          equity: paperTradingAccount.equity,
+          marginUsed: paperTradingAccount.marginUsed
+        },
+        openPositions: paperTradingAccount.openPositions
+      };
+    }
+
+    function applyLiveBetaRiskAssessment(assessment) {
+      if (!assessment) return;
+      const riskLockEl = document.getElementById('betaRiskLock');
+      const dailyLossEl = document.getElementById('betaDailyLoss');
+      const killSwitchEl = document.getElementById('betaKillSwitch');
+      const heatEl = document.getElementById('betaPortfolioHeat');
+      const exposureEl = document.getElementById('betaSymbolExposure');
+      const executionEl = document.getElementById('betaExecutionMode');
+
+      if (riskLockEl) riskLockEl.textContent = assessment.locks?.riskLock ? 'Blocked' : 'Open';
+      if (dailyLossEl) dailyLossEl.textContent = `$${Number(assessment.dailyRealizedLoss || 0).toFixed(2)} / $${Number(assessment.dailyLossLimit || 250).toFixed(2)}`;
+      if (killSwitchEl && !String(killSwitchEl.textContent).toLowerCase().includes('triggered')) {
+        killSwitchEl.textContent = assessment.locks?.killSwitch ? 'Triggered' : 'Ready';
+      }
+      if (heatEl) heatEl.textContent = `${Number(assessment.projectedPortfolioHeatPct || 0).toFixed(2)}%`;
+      if (exposureEl) exposureEl.textContent = `${assessment.symbolExposureCount || 0}`;
+      if (executionEl) executionEl.textContent = assessment.approved ? 'Practice Simulation Ready' : 'Risk Review Required';
+    }
+
+    async function runLiveBetaStrategyWithBackend() {
+      const response = await fetchLiveBetaBackendJson('/api/agents/quant/analyze', {
+        method: 'POST',
+        body: JSON.stringify({
+          symbols: Object.keys(currencyData),
+          profiles: strategyProfiles,
+          quotes: buildBackendStrategyContext()
+        })
+      });
+      const candidates = Array.isArray(response.candidates) ? response.candidates : [];
+      candidates.sort((a, b) => b.confidence - a.confidence || b.rr - a.rr);
+      bestOptimizedStrategy = candidates[0] || null;
+      renderStrategyOptimization(candidates);
+      return bestOptimizedStrategy;
+    }
+
+    async function runLiveBetaPipeline() {
+      const response = await fetchLiveBetaBackendJson('/api/agents/pipeline/run', {
+        method: 'POST',
+        body: JSON.stringify({
+          symbols: Object.keys(currencyData),
+          profiles: strategyProfiles,
+          quotes: buildBackendStrategyContext(),
+          riskPercent: parseFloat(document.getElementById('betaMaxRiskPct')?.value) || 1,
+          maxRiskPct: parseFloat(document.getElementById('betaMaxRiskPct')?.value) || 1,
+          maxOpenTrades: parseInt(document.getElementById('betaMaxOpenTrades')?.value, 10) || 2,
+          dailyLossLimit: 250,
+          dailyRealizedLoss: getClosedLossSnapshot(),
+          maxPortfolioHeatPct: 3,
+          maxSymbolExposure: 1,
+          killSwitch: (document.getElementById('betaKillSwitch')?.textContent || '').toLowerCase().includes('triggered'),
+          account: {
+            balance: paperTradingAccount.balance,
+            equity: paperTradingAccount.equity,
+            marginUsed: paperTradingAccount.marginUsed
+          },
+          openPositions: paperTradingAccount.openPositions,
+          source: 'Live beta practice simulation'
+        })
+      });
+      const candidates = Array.isArray(response.rankedCandidates) ? response.rankedCandidates : [];
+      candidates.sort((a, b) => b.confidence - a.confidence || b.rr - a.rr);
+      bestOptimizedStrategy = candidates[0] || null;
+      renderStrategyOptimization(candidates);
+      return response;
+    }
+
+    function updateLiveBetaCandidate(plan, assessment = null) {
       const candidate = document.getElementById('betaCurrentCandidate');
       if (!candidate) return;
       if (!plan) {
@@ -6553,7 +6913,7 @@
         Signal: <strong>${plan.signalType}</strong><br>
         Strategy: <strong>${plan.strategyName}</strong><br>
         Confidence: <strong>${plan.confidence}%</strong><br>
-        Expected RR: <strong>1:${plan.rr.toFixed(2)}</strong>
+        Expected RR: <strong>1:${plan.rr.toFixed(2)}</strong>${assessment ? `<br>Risk Verdict: <strong>${assessment.approved ? 'APPROVED' : 'BLOCKED'}</strong>` : ''}
       `;
       updateLiveBetaVisual(plan);
     }
@@ -6598,41 +6958,166 @@
     }
 
     async function checkLiveBetaBackend() {
-      const backendUrl = document.getElementById('betaBackendUrl')?.value?.replace(/\/$/, '') || 'http://localhost:8000';
       const status = document.getElementById('betaBackendStatus');
-      appendLiveBetaLog(`Checking backend health at ${backendUrl}/api/health`);
+      appendLiveBetaLog(`Checking backend health at ${getLiveBetaBackendUrl()}/api/health`);
       updateLiveBetaVisual(bestOptimizedStrategy || runStrategyOptimization());
 
       try {
-        const response = await fetch(`${backendUrl}/api/health`, { method: 'GET' });
-        if (!response.ok) throw new Error(`HTTP ${response.status}`);
-        const data = await response.json().catch(() => ({}));
-        if (status) status.textContent = data.status || 'Connected';
-        appendLiveBetaLog('Backend health check passed. Practice execution endpoints can be tested next.');
+        const data = await fetchLiveBetaBackendJson('/api/health', { method: 'GET' });
+        const portfolio = await fetchLiveBetaBackendJson('/api/portfolio/state', { method: 'GET' }).catch(() => null);
+        if (status) status.textContent = data.mode || 'Connected';
+        const executionEl = document.getElementById('betaExecutionMode');
+        const brokerEl = document.getElementById('betaBrokerAdapter');
+        if (executionEl) executionEl.textContent = portfolio?.execution === 'simulation-only' ? 'Practice Simulation' : 'Backend Connected';
+        if (brokerEl) brokerEl.textContent = document.getElementById('betaBroker')?.selectedOptions?.[0]?.textContent || 'Backend Adapter';
+        if (portfolio?.riskLocks) {
+          applyLiveBetaRiskAssessment({
+            approved: !portfolio.riskLocks.riskLock,
+            dailyRealizedLoss: 0,
+            dailyLossLimit: portfolio.limits?.dailyLossLimit || 250,
+            projectedPortfolioHeatPct: 0,
+            symbolExposureCount: 0,
+            locks: portfolio.riskLocks
+          });
+        }
+        await refreshLiveBetaAuditStream();
+        await refreshLiveBetaRunHistory();
+        appendLiveBetaLog('Backend health check passed. Risk and portfolio endpoints are reachable.');
       } catch (error) {
         if (status) status.textContent = 'Not Connected';
         appendLiveBetaLog(`Backend unavailable: ${error.message}. This is expected until a secure backend is running.`);
       }
     }
 
-    function simulateLiveBetaOrder() {
+    async function simulateLiveBetaOrder() {
       const maxRiskPct = parseFloat(document.getElementById('betaMaxRiskPct')?.value) || 1;
-      const maxOpenTrades = parseInt(document.getElementById('betaMaxOpenTrades')?.value, 10) || 2;
-      const plan = runStrategyOptimization();
-      updateLiveBetaCandidate(plan);
+      let plan = null;
 
-      if (!plan || plan.signalType === 'NO_TRADE') {
-        appendLiveBetaLog('Practice simulation rejected: no valid strategy candidate.');
-        return;
+      try {
+        if (appSettings.backendEnabled) {
+          try {
+            const pipeline = await runLiveBetaPipeline();
+            plan = pipeline.approvedTrade || bestOptimizedStrategy || null;
+            if (!plan && Array.isArray(pipeline.rankedCandidates) && pipeline.rankedCandidates.length) {
+              plan = pipeline.rankedCandidates[0];
+            }
+
+            if (!plan || plan.signalType === 'NO_TRADE') {
+              updateLiveBetaCandidate(plan);
+              await refreshLiveBetaAuditStream();
+              appendLiveBetaLog('Practice simulation rejected: no valid strategy candidate.');
+              return;
+            }
+
+            if (maxRiskPct > 1) {
+              appendLiveBetaLog(`Practice simulation warning: risk ${maxRiskPct}% is above conservative beta default.`);
+            }
+
+            if (pipeline.riskAssessment) {
+              applyLiveBetaRiskAssessment(pipeline.riskAssessment);
+            }
+            updateLiveBetaCandidate(plan, pipeline.riskAssessment || null);
+            await refreshLiveBetaAuditStream();
+            await refreshLiveBetaRunHistory();
+
+            if (pipeline.riskAssessment && !pipeline.riskAssessment.approved) {
+              const reason = pipeline.riskAssessment.violations?.[0] || 'risk rules blocked the simulation';
+              appendLiveBetaLog(`Practice simulation blocked: ${reason}.`);
+              showStatus('Live Auto Beta blocked the simulation based on backend risk rules.', 'warning');
+              return;
+            }
+
+            if (pipeline.execution?.approved && pipeline.execution.trade) {
+              appendLiveBetaLog(`Practice simulation approved: ${pipeline.execution.trade.symbol} ${pipeline.execution.trade.direction} at ${pipeline.execution.trade.entryPrice.toFixed(currencyData[pipeline.execution.trade.symbol]?.decimal || 5)} with projected margin $${pipeline.execution.trade.marginRequired.toFixed(2)}. No broker order was sent.`);
+              showStatus('Live Auto Beta simulated a backend-approved practice order. No real broker order was sent.', 'info');
+              return;
+            }
+
+            if (pipeline.execution?.reason) {
+              appendLiveBetaLog(`Practice simulation blocked: ${pipeline.execution.reason}.`);
+              return;
+            }
+          } catch (error) {
+            appendLiveBetaLog(`Backend pipeline unavailable: ${error.message}. Falling back to staged simulation flow.`);
+            plan = await runLiveBetaStrategyWithBackend().catch(() => runStrategyOptimization());
+          }
+        } else {
+          plan = runStrategyOptimization();
+        }
+      } catch (error) {
+        plan = runStrategyOptimization();
       }
 
-      if (paperTradingAccount.openPositions.length >= maxOpenTrades) {
-        appendLiveBetaLog(`Practice simulation rejected: open trade limit ${maxOpenTrades} reached.`);
+      if (!plan || plan.signalType === 'NO_TRADE') {
+        updateLiveBetaCandidate(plan);
+        appendLiveBetaLog('Practice simulation rejected: no valid strategy candidate.');
         return;
       }
 
       if (maxRiskPct > 1) {
         appendLiveBetaLog(`Practice simulation warning: risk ${maxRiskPct}% is above conservative beta default.`);
+      }
+
+      let assessment = null;
+      if (appSettings.backendEnabled) {
+        try {
+          assessment = await fetchLiveBetaBackendJson('/api/agents/risk/assess', {
+            method: 'POST',
+            body: JSON.stringify(buildLiveBetaRiskRequest(plan))
+          });
+          applyLiveBetaRiskAssessment(assessment);
+          await refreshLiveBetaAuditStream();
+        } catch (error) {
+          appendLiveBetaLog(`Backend risk check unavailable: ${error.message}. Falling back to frontend constraints.`);
+        }
+      }
+
+      updateLiveBetaCandidate(plan, assessment);
+
+      if (assessment && !assessment.approved) {
+        const reason = assessment.violations?.[0] || 'risk rules blocked the simulation';
+        appendLiveBetaLog(`Practice simulation blocked: ${reason}.`);
+        showStatus('Live Auto Beta blocked the simulation based on backend risk rules.', 'warning');
+        return;
+      }
+
+      if (!assessment) {
+        const maxOpenTrades = parseInt(document.getElementById('betaMaxOpenTrades')?.value, 10) || 2;
+        if (paperTradingAccount.openPositions.length >= maxOpenTrades) {
+          appendLiveBetaLog(`Practice simulation rejected: open trade limit ${maxOpenTrades} reached.`);
+          return;
+        }
+      }
+
+      if (appSettings.backendEnabled) {
+        try {
+          const simulation = await fetchLiveBetaBackendJson('/api/agents/execution/simulate', {
+            method: 'POST',
+            body: JSON.stringify({
+              plan,
+              riskPercent: maxRiskPct,
+              account: {
+                balance: paperTradingAccount.balance,
+                equity: paperTradingAccount.equity,
+                marginUsed: paperTradingAccount.marginUsed
+              },
+              source: 'Live beta practice simulation'
+            })
+          });
+          if (simulation?.approved && simulation.trade) {
+            await refreshLiveBetaAuditStream();
+            appendLiveBetaLog(`Practice simulation approved: ${simulation.trade.symbol} ${simulation.trade.direction} at ${simulation.trade.entryPrice.toFixed(currencyData[simulation.trade.symbol]?.decimal || 5)} with projected margin $${simulation.trade.marginRequired.toFixed(2)}. No broker order was sent.`);
+            showStatus('Live Auto Beta simulated a backend-approved practice order. No real broker order was sent.', 'info');
+            return;
+          }
+          if (simulation?.reason) {
+            await refreshLiveBetaAuditStream();
+            appendLiveBetaLog(`Practice simulation blocked: ${simulation.reason}.`);
+            return;
+          }
+        } catch (error) {
+          appendLiveBetaLog(`Backend execution simulation unavailable: ${error.message}.`);
+        }
       }
 
       appendLiveBetaLog(`Practice simulation approved: ${plan.symbol} ${plan.signalType} via ${plan.strategyName}. No broker order was sent.`);
@@ -6642,6 +7127,10 @@
     function triggerLiveBetaKillSwitch() {
       const killSwitch = document.getElementById('betaKillSwitch');
       if (killSwitch) killSwitch.textContent = 'Triggered';
+      const riskLock = document.getElementById('betaRiskLock');
+      if (riskLock) riskLock.textContent = 'Blocked';
+      const executionEl = document.getElementById('betaExecutionMode');
+      if (executionEl) executionEl.textContent = 'Kill Switch Active';
       if (autoPaperTradingEnabled) stopAutoPaperTrading();
       appendLiveBetaLog('Kill switch triggered. Auto paper trading stopped. Live broker execution remains locked.');
       showStatus('Kill switch triggered. Auto systems stopped in beta mode.', 'warning');
@@ -7369,6 +7858,44 @@
       if (log) log.innerHTML = topRows.map(row => `<div>${row}</div>`).join('');
     }
 
+    function buildBackendStrategyContext() {
+      return Object.fromEntries(Object.entries(currencyData).map(([symbol, data]) => [symbol, {
+        symbol,
+        price: data.price,
+        bid: data.bid,
+        ask: data.ask,
+        spread: data.spread,
+        decimal: data.decimal,
+        ema20: data.ema20,
+        ema50: data.ema50,
+        rsi14: data.rsi14,
+        atr14: data.atr14,
+        marketStructure: data.marketStructure,
+        htfStructure: data.htfStructure,
+        htfEma20: data.htfEma20,
+        htfEma50: data.htfEma50,
+        maxSpreadAllowed: data.maxSpreadAllowed,
+        newsRisk: data.newsRisk,
+        dataType: data.dataType
+      }]));
+    }
+
+    async function runStrategyOptimizationViaBackend() {
+      const response = await fetchBackendJson('/api/agents/quant/analyze', {
+        method: 'POST',
+        body: JSON.stringify({
+          symbols: Object.keys(currencyData),
+          profiles: strategyProfiles,
+          quotes: buildBackendStrategyContext()
+        })
+      });
+      const candidates = Array.isArray(response.candidates) ? response.candidates : [];
+      candidates.sort((a, b) => b.confidence - a.confidence || b.rr - a.rr);
+      bestOptimizedStrategy = candidates[0] || null;
+      renderStrategyOptimization(candidates);
+      return bestOptimizedStrategy;
+    }
+
     function toggleAutoPaperTrading() {
       if (autoPaperTradingEnabled) {
         stopAutoPaperTrading();
@@ -7410,20 +7937,73 @@
       updateAutoTradeMonitor();
     }
 
-    function autoPaperTradingTick() {
-      const best = runStrategyOptimization();
-      const minConfidence = parseFloat(document.getElementById('autoMinConfidence').value) || 78;
-      const maxOpenTrades = parseInt(document.getElementById('autoMaxOpenTrades').value, 10) || 3;
+    async function autoPaperTradingTick() {
+      if (autoPaperTradingBusy) return;
+      autoPaperTradingBusy = true;
+      try {
+        let best = null;
+        if (appSettings.backendEnabled) {
+          try {
+            best = await runStrategyOptimizationViaBackend();
+          } catch (error) {
+            console.log('Backend strategy optimization failed:', error.message);
+            best = runStrategyOptimization();
+          }
+        } else {
+          best = runStrategyOptimization();
+        }
 
-      if (!best || best.signalType === 'NO_TRADE' || best.confidence < minConfidence) return;
-      if (paperTradingAccount.openPositions.length >= maxOpenTrades) return;
+        const minConfidence = parseFloat(document.getElementById('autoMinConfidence').value) || 78;
+        const maxOpenTrades = parseInt(document.getElementById('autoMaxOpenTrades').value, 10) || 3;
 
-      const duplicate = paperTradingAccount.openPositions.some(pos =>
-        pos.symbol === best.symbol && pos.direction === best.signalType
-      );
-      if (duplicate) return;
+        if (!best || best.signalType === 'NO_TRADE' || best.confidence < minConfidence) return;
+        if (paperTradingAccount.openPositions.length >= maxOpenTrades) return;
 
-      executeAutoPaperTrade(best);
+        const duplicate = paperTradingAccount.openPositions.some(pos =>
+          pos.symbol === best.symbol && pos.direction === best.signalType
+        );
+        if (duplicate) return;
+
+        if (appSettings.backendEnabled) {
+          try {
+            const riskPercent = parseFloat(document.getElementById('autoRiskPercent').value) || 1;
+            const simulation = await fetchBackendJson('/api/agents/execution/simulate', {
+              method: 'POST',
+              body: JSON.stringify({
+                plan: best,
+                riskPercent,
+                account: {
+                  balance: paperTradingAccount.balance,
+                  equity: paperTradingAccount.equity,
+                  marginUsed: paperTradingAccount.marginUsed
+                }
+              })
+            });
+            if (simulation?.approved && simulation.trade) {
+              commitAutoPaperTrade(simulation.trade);
+              return;
+            }
+            if (simulation?.reason) {
+              console.log('Backend paper execution rejected:', simulation.reason);
+              return;
+            }
+          } catch (error) {
+            console.log('Backend paper execution failed:', error.message);
+          }
+        }
+
+        executeAutoPaperTrade(best);
+      } finally {
+        autoPaperTradingBusy = false;
+      }
+    }
+
+    function commitAutoPaperTrade(trade) {
+      paperTradingAccount.openPositions.push(trade);
+      paperTradingAccount.marginUsed += trade.marginRequired;
+      savePaperTradingData();
+      renderPaperTradingDashboard();
+      showStatus(`Auto paper trade: ${trade.symbol} ${trade.direction} via ${trade.strategyName}`, 'success');
     }
 
     function executeAutoPaperTrade(plan) {
@@ -7455,11 +8035,7 @@
         confidence: plan.confidence
       };
 
-      paperTradingAccount.openPositions.push(trade);
-      paperTradingAccount.marginUsed += marginRequired;
-      savePaperTradingData();
-      renderPaperTradingDashboard();
-      showStatus(`Auto paper trade: ${plan.symbol} ${plan.signalType} via ${plan.strategyName}`, 'success');
+      commitAutoPaperTrade(trade);
     }
 
     function getActiveAutoTrade() {
