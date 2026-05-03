@@ -55,6 +55,7 @@ node backend/server.js
 - `GET /api/audit/logs`
 - `GET /api/pipeline/runs`
 - `GET /api/pipeline/runs/:id`
+- `GET /api/pipeline/runs/diff?primary=<id>&secondary=<id>`
 - `POST /api/agents/quant/analyze`
 - `POST /api/agents/risk/assess`
 - `POST /api/agents/execution/simulate`

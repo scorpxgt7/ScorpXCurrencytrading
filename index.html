@@ -4112,6 +4112,15 @@
             </div>
             <div class="beta-live-card">
               <h3 style="margin-bottom: 10px;">Pipeline Run History</h3>
+              <div style="display:grid; grid-template-columns: 1fr 140px; gap:10px; margin-bottom:10px;">
+                <input id="betaRunFilterSymbol" placeholder="Filter by symbol" style="width:100%; padding:8px 10px; background: var(--input-bg); border:1px solid var(--border); border-radius:8px; color: var(--text);">
+                <select id="betaRunFilterStatus" style="width:100%; padding:8px 10px; background: var(--input-bg); border:1px solid var(--border); border-radius:8px; color: var(--text);">
+                  <option value="all">All statuses</option>
+                  <option value="approved">Approved</option>
+                  <option value="blocked">Blocked</option>
+                  <option value="empty">Empty</option>
+                </select>
+              </div>
               <div id="betaRunHistory" style="color: var(--text-muted); line-height: 1.6;">No backend runs loaded yet.</div>
             </div>
             <div class="beta-live-card">
@@ -4389,6 +4398,8 @@
     let bestOptimizedStrategy = null;
     let liveBetaRunsCache = [];
     let liveBetaSelectedRun = null;
+    let liveBetaRunFilters = { symbol: '', status: 'all' };
+    let liveBetaLastReplayMode = 'full';
     const strategyProfiles = [
       { id: 'trend-scalper', name: 'Trend Scalper', stopAtr: 1.1, targetAtr: 2.0, minRR: 1.6, confidenceBoost: 4 },
       { id: 'momentum-breakout', name: 'Momentum Breakout', stopAtr: 1.3, targetAtr: 2.7, minRR: 1.8, confidenceBoost: 8 },
@@ -4697,6 +4708,7 @@
     // Initialize when DOM is loaded
     document.addEventListener('DOMContentLoaded', function() {
       // Load saved data from localStorage
+      loadLiveBetaUiState();
       loadAppSettings();
       loadTradeJournal();
       loadPerformanceStats();
@@ -4715,6 +4727,7 @@
       initializeTradeJournal();
       initializePerformanceDashboard();
       initializeSettingsPanel();
+      initializeLiveBetaFilters();
       initializePaperTrading();
       
       // Fetch live prices on startup
@@ -6570,6 +6583,55 @@
       log.prepend(row);
     }
 
+    function saveLiveBetaUiState() {
+      localStorage.setItem('scorpx-beta-selected-run', liveBetaSelectedRun?.id || '');
+      localStorage.setItem('scorpx-beta-replay-mode', liveBetaLastReplayMode || 'full');
+      localStorage.setItem('scorpx-beta-run-filters', JSON.stringify(liveBetaRunFilters));
+    }
+
+    function loadLiveBetaUiState() {
+      liveBetaLastReplayMode = localStorage.getItem('scorpx-beta-replay-mode') || 'full';
+      const savedSelectedRunId = localStorage.getItem('scorpx-beta-selected-run') || '';
+      liveBetaSelectedRun = savedSelectedRunId ? { id: savedSelectedRunId } : null;
+      try {
+        const savedFilters = JSON.parse(localStorage.getItem('scorpx-beta-run-filters') || '{}');
+        liveBetaRunFilters = {
+          symbol: String(savedFilters.symbol || ''),
+          status: ['all', 'approved', 'blocked', 'empty'].includes(savedFilters.status) ? savedFilters.status : 'all'
+        };
+      } catch (error) {
+        liveBetaRunFilters = { symbol: '', status: 'all' };
+      }
+    }
+
+    function initializeLiveBetaFilters() {
+      const symbolInput = document.getElementById('betaRunFilterSymbol');
+      const statusSelect = document.getElementById('betaRunFilterStatus');
+      if (!symbolInput || !statusSelect) return;
+      symbolInput.value = liveBetaRunFilters.symbol || '';
+      statusSelect.value = liveBetaRunFilters.status || 'all';
+      symbolInput.addEventListener('input', e => {
+        liveBetaRunFilters.symbol = e.target.value.trim().toUpperCase();
+        saveLiveBetaUiState();
+        renderBetaRunHistory(liveBetaRunsCache);
+        renderLiveBetaRunComparison();
+      });
+      statusSelect.addEventListener('change', e => {
+        liveBetaRunFilters.status = e.target.value;
+        saveLiveBetaUiState();
+        renderBetaRunHistory(liveBetaRunsCache);
+        renderLiveBetaRunComparison();
+      });
+    }
+
+    function getFilteredLiveBetaRuns() {
+      return liveBetaRunsCache.filter(run => {
+        const symbolMatch = !liveBetaRunFilters.symbol || String(run.symbol || '').toUpperCase().includes(liveBetaRunFilters.symbol);
+        const statusMatch = liveBetaRunFilters.status === 'all' || String(run.status || '').toLowerCase() === liveBetaRunFilters.status;
+        return symbolMatch && statusMatch;
+      });
+    }
+
     function renderBetaAuditStream(events = []) {
       const auditEl = document.getElementById('betaAuditStream');
       if (!auditEl) return;
@@ -6594,12 +6656,13 @@
     function renderBetaRunHistory(runs = []) {
       const historyEl = document.getElementById('betaRunHistory');
       if (!historyEl) return;
-      if (!Array.isArray(runs) || !runs.length) {
+      const filteredRuns = Array.isArray(runs) ? getFilteredLiveBetaRuns() : [];
+      if (!filteredRuns.length) {
         historyEl.textContent = 'No backend runs available yet.';
         return;
       }
 
-      historyEl.innerHTML = runs.slice(0, 6).map(run => {
+      historyEl.innerHTML = filteredRuns.slice(0, 6).map(run => {
         const time = run.timestamp ? new Date(run.timestamp).toLocaleTimeString() : '--';
         const status = String(run.status || 'unknown').toUpperCase();
         const symbol = run.symbol || 'Watchlist';
@@ -6647,42 +6710,45 @@
     function renderLiveBetaRunComparison() {
       const comparisonEl = document.getElementById('betaRunComparison');
       if (!comparisonEl) return;
-      if (!Array.isArray(liveBetaRunsCache) || !liveBetaRunsCache.length) {
+      const filteredRuns = getFilteredLiveBetaRuns();
+      if (!filteredRuns.length) {
         comparisonEl.textContent = 'Run comparison will appear after pipeline history loads.';
         return;
       }
 
-      const primary = liveBetaSelectedRun || liveBetaRunsCache[0];
-      const secondary = liveBetaRunsCache.find(run => run.id !== primary?.id) || null;
+      const primary = filteredRuns.find(run => run.id === liveBetaSelectedRun?.id) || filteredRuns[0];
+      const secondary = filteredRuns.find(run => run.id !== primary?.id) || null;
       if (!primary || !secondary) {
         comparisonEl.textContent = 'At least two pipeline runs are needed for comparison.';
         return;
       }
-
-      const primaryPlan = primary.approvedTrade || primary.topCandidates?.[0] || {};
-      const secondaryPlan = secondary.approvedTrade || secondary.topCandidates?.[0] || {};
-      comparisonEl.innerHTML = `
-        <div style="display:grid; grid-template-columns:repeat(auto-fit, minmax(150px, 1fr)); gap:12px;">
-          <div>
-            <strong>Selected</strong><br>
-            ${primary.symbol || '--'} ${String(primary.status || '--').toUpperCase()}<br>
-            Confidence: ${Number(primaryPlan.confidence || 0).toFixed(0)}%<br>
-            Heat: ${Number(primary.riskAssessment?.projectedPortfolioHeatPct || 0).toFixed(2)}%
-          </div>
-          <div>
-            <strong>Compare Against</strong><br>
-            ${secondary.symbol || '--'} ${String(secondary.status || '--').toUpperCase()}<br>
-            Confidence: ${Number(secondaryPlan.confidence || 0).toFixed(0)}%<br>
-            Heat: ${Number(secondary.riskAssessment?.projectedPortfolioHeatPct || 0).toFixed(2)}%
-          </div>
-          <div>
-            <strong>Delta</strong><br>
-            Confidence: ${(Number(primaryPlan.confidence || 0) - Number(secondaryPlan.confidence || 0)).toFixed(0)} pts<br>
-            Heat: ${(Number(primary.riskAssessment?.projectedPortfolioHeatPct || 0) - Number(secondary.riskAssessment?.projectedPortfolioHeatPct || 0)).toFixed(2)}%<br>
-            Verdict: ${primary.riskAssessment?.approved ? 'Selected clearer' : 'Selected risk-blocked'}
-          </div>
-        </div>
-      `;
+      fetchLiveBetaBackendJson(`/api/pipeline/runs/diff?primary=${encodeURIComponent(primary.id)}&secondary=${encodeURIComponent(secondary.id)}`, { method: 'GET' })
+        .then(payload => {
+          const diff = payload.diff || {};
+          comparisonEl.innerHTML = `
+            <div style="display:grid; grid-template-columns:repeat(auto-fit, minmax(150px, 1fr)); gap:12px;">
+              <div>
+                <strong>Selected</strong><br>
+                ${primary.symbol || '--'} ${String(primary.status || '--').toUpperCase()}<br>
+                Run: <code>${String(primary.id || '--').slice(0, 14)}</code>
+              </div>
+              <div>
+                <strong>Compare Against</strong><br>
+                ${secondary.symbol || '--'} ${String(secondary.status || '--').toUpperCase()}<br>
+                Run: <code>${String(secondary.id || '--').slice(0, 14)}</code>
+              </div>
+              <div>
+                <strong>Server Diff</strong><br>
+                Confidence: ${Number(diff.confidenceDelta || 0).toFixed(0)} pts<br>
+                Heat: ${Number(diff.projectedHeatDelta || 0).toFixed(2)}%<br>
+                ${diff.summary || 'No summary'}
+              </div>
+            </div>
+          `;
+        })
+        .catch(() => {
+          comparisonEl.textContent = 'Comparison service is currently unavailable.';
+        });
     }
 
     function applyLiveBetaExecutionReplay(execution, approvedTrade) {
@@ -6705,6 +6771,8 @@
       if (!run) return;
       const plan = run.approvedTrade || run.topCandidates?.[0] || null;
       liveBetaSelectedRun = run;
+      liveBetaLastReplayMode = mode;
+      saveLiveBetaUiState();
       renderBetaRunHistory(liveBetaRunsCache);
       renderLiveBetaReplayControls(run);
       renderLiveBetaRunComparison();
@@ -6734,6 +6802,7 @@
         const run = payload.run;
         if (!run) throw new Error('Run not found');
         liveBetaSelectedRun = run;
+        saveLiveBetaUiState();
         renderBetaRunHistory(liveBetaRunsCache);
         renderLiveBetaReplayControls(run);
         renderLiveBetaRunComparison();
@@ -6751,6 +6820,8 @@
         const payload = await fetchLiveBetaBackendJson(`/api/pipeline/runs/${encodeURIComponent(liveBetaSelectedRun.id)}`, { method: 'GET' });
         const run = payload.run;
         if (!run) throw new Error('Run not found');
+        liveBetaLastReplayMode = mode;
+        saveLiveBetaUiState();
         hydrateLiveBetaRun(run, mode);
         await refreshLiveBetaAuditStream();
       } catch (error) {

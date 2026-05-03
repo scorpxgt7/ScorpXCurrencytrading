@@ -524,6 +524,31 @@ async function appendPipelineRun(run) {
   return run;
 }
 
+function buildRunDiff(primaryRun, secondaryRun) {
+  const primaryPlan = primaryRun?.approvedTrade || primaryRun?.topCandidates?.[0] || {};
+  const secondaryPlan = secondaryRun?.approvedTrade || secondaryRun?.topCandidates?.[0] || {};
+  const primaryConfidence = asNumber(primaryPlan.confidence, 0);
+  const secondaryConfidence = asNumber(secondaryPlan.confidence, 0);
+  const primaryHeat = asNumber(primaryRun?.riskAssessment?.projectedPortfolioHeatPct, 0);
+  const secondaryHeat = asNumber(secondaryRun?.riskAssessment?.projectedPortfolioHeatPct, 0);
+  const primaryRiskApproved = Boolean(primaryRun?.riskAssessment?.approved);
+  const secondaryRiskApproved = Boolean(secondaryRun?.riskAssessment?.approved);
+  return {
+    primaryRunId: primaryRun?.id || '',
+    secondaryRunId: secondaryRun?.id || '',
+    primarySymbol: primaryRun?.symbol || '',
+    secondarySymbol: secondaryRun?.symbol || '',
+    primaryStatus: primaryRun?.status || '',
+    secondaryStatus: secondaryRun?.status || '',
+    confidenceDelta: Number((primaryConfidence - secondaryConfidence).toFixed(2)),
+    projectedHeatDelta: Number((primaryHeat - secondaryHeat).toFixed(2)),
+    riskApprovalChanged: primaryRiskApproved !== secondaryRiskApproved,
+    summary: primaryRiskApproved
+      ? `Primary run is clearer by ${Number((primaryConfidence - secondaryConfidence).toFixed(0))} confidence points`
+      : `Primary run remains risk-blocked relative to ${secondaryRun?.symbol || 'comparison run'}`,
+  };
+}
+
 async function runPipeline(body = {}) {
   const requestedSymbols = Array.isArray(body.symbols) && body.symbols.length
     ? body.symbols.map(symbol => String(symbol || '').toUpperCase()).filter(symbol => symbols[symbol])
@@ -718,6 +743,27 @@ async function handleApi(req, res, url) {
     } catch (error) {
       return send(res, 200, {
         runs: memoryPipelineRuns.slice(0, Math.max(1, Math.min(limit, 100))),
+        source: 'memory-fallback',
+        warning: error.message,
+      });
+    }
+  }
+
+  if (url.pathname === '/api/pipeline/runs/diff' && req.method === 'GET') {
+    const primaryId = url.searchParams.get('primary') || '';
+    const secondaryId = url.searchParams.get('secondary') || '';
+    if (!primaryId || !secondaryId) return send(res, 400, { error: 'primary and secondary run ids are required' });
+    try {
+      const primaryPayload = await runSqlite('get_pipeline_run', { id: primaryId });
+      const secondaryPayload = await runSqlite('get_pipeline_run', { id: secondaryId });
+      if (!primaryPayload.run || !secondaryPayload.run) return send(res, 404, { error: 'One or both runs were not found' });
+      return send(res, 200, { diff: buildRunDiff(primaryPayload.run, secondaryPayload.run) });
+    } catch (error) {
+      const primaryRun = memoryPipelineRuns.find(item => item.id === primaryId) || null;
+      const secondaryRun = memoryPipelineRuns.find(item => item.id === secondaryId) || null;
+      if (!primaryRun || !secondaryRun) return send(res, 404, { error: 'One or both runs were not found', warning: error.message });
+      return send(res, 200, {
+        diff: buildRunDiff(primaryRun, secondaryRun),
         source: 'memory-fallback',
         warning: error.message,
       });
